@@ -172,6 +172,55 @@ bool has_kernel_bundle_impl(const context &Ctx, const std::vector<device> &Devs,
       !checkAllDevicesHaveAspect(Devs, aspect::online_linker))
     return false;
 
+  const plugin &Plugin = getSyclObjImpl(Ctx)->getPlugin();
+
+  auto maxWorkGroupSizes = std::vector<size_t>(Devs.size());
+  for (auto i = 0u; i < Devs.size(); ++i) {
+    const RT::PiDevice &PiDevice = getSyclObjImpl(Devs[i])->getHandleRef();
+    std::cout << "Using device: "
+              << Devs[i].get_info<sycl::info::device::name>() << std::endl;
+    Plugin.call<PiApiKind::piDeviceGetInfo>(
+        PiDevice, PI_DEVICE_INFO_MAX_WORK_GROUP_SIZE,
+        sizeof(maxWorkGroupSizes[i]), &maxWorkGroupSizes[i], nullptr);
+  }
+
+  // Check that each kernel has valid attributes for at least one device
+  auto KernelBundle = get_kernel_bundle<bundle_state::input>(Ctx);
+  auto KernelIds = KernelBundle.get_kernel_ids();
+  std::cout << "KernelIds.size(): " << KernelIds.size() << std::endl;
+
+
+  for (auto &KernelId : KernelIds) {
+    std::cout << "I'm on line " << __LINE__ << std::endl;
+    const kernel SyclKernel =
+        KernelBundle.get_kernel<bundle_state::executable>(KernelId);
+    std::cout << "I'm on line " << __LINE__ << std::endl;
+    std::shared_ptr<kernel_impl> SyclKernelImpl = getSyclObjImpl(SyclKernel);
+    pi_kernel Kernel = SyclKernelImpl->getHandleRef();
+
+    bool KernelHasCompatibleDevice = false;
+    for (auto i = 0u; i < Devs.size(); ++i) {
+      size_t CompileWGSize[3] = {0};
+      const RT::PiDevice &PiDevice = getSyclObjImpl(Devs[i])->getHandleRef();
+      Plugin.call<PiApiKind::piKernelGetGroupInfo>(
+          Kernel, PiDevice, PI_KERNEL_GROUP_INFO_COMPILE_WORK_GROUP_SIZE,
+          sizeof(size_t) * 3, CompileWGSize, nullptr);
+
+      std::cout << "Got wg size: " << CompileWGSize[0] << ", "
+                << CompileWGSize[1] << ", " << CompileWGSize[2] << std::endl;
+
+      if (CompileWGSize[0] != 0) {
+        if (CompileWGSize[0] * CompileWGSize[1] * CompileWGSize[2] <
+            maxWorkGroupSizes[i]) {
+          KernelHasCompatibleDevice = true;
+        }
+      }
+    }
+    if (!KernelHasCompatibleDevice) {
+      return false;
+    }
+  }
+
   const std::vector<device_image_plain> DeviceImages =
       detail::ProgramManager::getInstance()
           .getSYCLDeviceImagesWithCompatibleState(Ctx, Devs, State);
@@ -192,6 +241,7 @@ bool has_kernel_bundle_impl(const context &Ctx, const std::vector<device> &Devs,
     throw sycl::exception(make_error_code(errc::invalid),
                           "Not all devices are associated with the context or "
                           "vector of devices is empty");
+  std::cout << "I'm on line " << __LINE__ << std::endl;
 
   bool DeviceHasRequireAspectForState = true;
   if (bundle_state::input == State) {
@@ -208,6 +258,47 @@ bool has_kernel_bundle_impl(const context &Ctx, const std::vector<device> &Devs,
 
   if (!DeviceHasRequireAspectForState)
     return false;
+
+  const plugin &Plugin = getSyclObjImpl(Ctx)->getPlugin();
+
+  auto maxWorkGroupSizes = std::vector<size_t>(Devs.size());
+  for (auto i = 0u; i < Devs.size(); ++i) {
+    const RT::PiDevice &PiDevice = getSyclObjImpl(Devs[i])->getHandleRef();
+    Plugin.call<PiApiKind::piDeviceGetInfo>(
+        PiDevice, PI_DEVICE_INFO_MAX_WORK_GROUP_SIZE,
+        sizeof(maxWorkGroupSizes[i]), &maxWorkGroupSizes[i], nullptr);
+  }
+
+  // Check that each kernel has valid attributes for at least one device
+  auto KernelBundle = get_kernel_bundle<bundle_state::input>(Ctx);
+  for (auto &KernelId : KernelIds) {
+    const kernel SyclKernel =
+        KernelBundle.get_kernel<bundle_state::executable>(KernelId);
+    std::shared_ptr<kernel_impl> SyclKernelImpl = getSyclObjImpl(SyclKernel);
+    const pi_kernel Kernel = SyclKernelImpl->getHandleRef();
+  std::cout << "I'm on line " << __LINE__ << std::endl;
+
+    bool KernelHasCompatibleDevice = false;
+    for (auto i = 0u; i < Devs.size(); ++i) {
+      size_t CompileWGSize[3] = {0};
+    const RT::PiDevice &PiDevice = getSyclObjImpl(Devs[i])->getHandleRef();
+      Plugin.call<PiApiKind::piKernelGetGroupInfo>(
+          Kernel, PiDevice, PI_KERNEL_GROUP_INFO_COMPILE_WORK_GROUP_SIZE,
+          sizeof(size_t) * 3, CompileWGSize, nullptr);
+
+      std::cout << "Got wg size: " << CompileWGSize[0] << ", " << CompileWGSize[1] << ", " << CompileWGSize[2] << std::endl;
+
+      if (CompileWGSize[0] != 0) {
+        if (CompileWGSize[0] * CompileWGSize[1] * CompileWGSize[2] <
+            maxWorkGroupSizes[i]) {
+          KernelHasCompatibleDevice = true;
+        }
+      }
+    }
+    if (!KernelHasCompatibleDevice) {
+      return false;
+    }
+  }
 
   const std::vector<device_image_plain> DeviceImages =
       detail::ProgramManager::getInstance()
