@@ -189,19 +189,34 @@ bool has_kernel_bundle_impl(const context &Ctx, const std::vector<device> &Devs,
   auto KernelIds = KernelBundle.get_kernel_ids();
   std::cout << "KernelIds.size(): " << KernelIds.size() << std::endl;
 
-
   for (auto &KernelId : KernelIds) {
     std::cout << "I'm on line " << __LINE__ << std::endl;
+    // This is failing because the bundle_state is not executable
+    //
+    // What do I have?
+    // - sycl::context
+    // - kernel_id
+    // - kernel_bundle
+    //
+    // What do I need:
+    // - sycl::kernel
+
+    auto KernelBundleImplPtr = getSyclObjImpl(KernelBundle);
+    std::cout << "I'm on line " << __LINE__ << std::endl;
     const kernel SyclKernel =
-        KernelBundle.get_kernel<bundle_state::executable>(KernelId);
+        KernelBundleImplPtr->get_kernel(KernelId, KernelBundleImplPtr);
     std::cout << "I'm on line " << __LINE__ << std::endl;
     std::shared_ptr<kernel_impl> SyclKernelImpl = getSyclObjImpl(SyclKernel);
+    std::cout << "I'm on line " << __LINE__ << std::endl;
     pi_kernel Kernel = SyclKernelImpl->getHandleRef();
+    std::cout << "I'm on line " << __LINE__ << std::endl;
 
     bool KernelHasCompatibleDevice = false;
     for (auto i = 0u; i < Devs.size(); ++i) {
       size_t CompileWGSize[3] = {0};
+    std::cout << "I'm on line " << __LINE__ << std::endl;
       const RT::PiDevice &PiDevice = getSyclObjImpl(Devs[i])->getHandleRef();
+    std::cout << "I'm on line " << __LINE__ << std::endl;
       Plugin.call<PiApiKind::piKernelGetGroupInfo>(
           Kernel, PiDevice, PI_KERNEL_GROUP_INFO_COMPILE_WORK_GROUP_SIZE,
           sizeof(size_t) * 3, CompileWGSize, nullptr);
