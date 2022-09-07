@@ -2438,6 +2438,16 @@ pi_result piextPlatformCreateWithNativeHandle(pi_native_handle NativeHandle,
   return PI_ERROR_INVALID_VALUE;
 }
 
+__SYCL_EXPORT pi_result piextGetMemoryConnection(pi_device device1, pi_context context1, pi_device device2, pi_context context2, memory_connection* res){
+  (void) device1;
+  (void) device2;
+  if(context1 == context2){
+    *res = MEMORY_CONNECTION_SAME_OR_PLUGIN_MANAGED;
+  }
+  *res = MEMORY_CONNECTION_NONE;
+  return PI_SUCCESS;
+}
+
 // Get the cached PI device created for the L0 device handle.
 // Return NULL if no such PI device found.
 pi_device _pi_platform::getDeviceFromNativeHandle(ze_device_handle_t ZeDevice) {
@@ -3894,9 +3904,11 @@ static pi_result ZeHostMemAllocHelper(void **ResultPtr, pi_context Context,
   return PI_SUCCESS;
 }
 
-pi_result piMemBufferCreate(pi_context Context, pi_mem_flags Flags, size_t Size,
-                            void *HostPtr, pi_mem *RetMem,
+pi_result piMemBufferCreate(pi_context Context, pi_device Device,
+                            pi_mem_flags Flags, size_t Size, void *HostPtr,
+                            pi_mem *RetMem,
                             const pi_mem_properties *properties) {
+  (void)Device;
 
   // TODO: implement support for more access modes
   if (!((Flags & PI_MEM_FLAGS_ACCESS_RW) ||
@@ -4075,10 +4087,12 @@ pi_result piMemRelease(pi_mem Mem) {
   return PI_SUCCESS;
 }
 
-pi_result piMemImageCreate(pi_context Context, pi_mem_flags Flags,
+pi_result piMemImageCreate(pi_context Context, pi_device Dev,
+                           pi_mem_flags Flags,
                            const pi_image_format *ImageFormat,
                            const pi_image_desc *ImageDesc, void *HostPtr,
                            pi_mem *RetImage) {
+  (void)Dev;
 
   // TODO: implement read-only, write-only
   if ((Flags & PI_MEM_FLAGS_ACCESS_RW) == 0) {

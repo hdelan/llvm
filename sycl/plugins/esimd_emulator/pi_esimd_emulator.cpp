@@ -481,6 +481,15 @@ pi_result piextPlatformCreateWithNativeHandle(pi_native_handle, pi_platform *) {
   DIE_NO_IMPLEMENTATION;
 }
 
+__SYCL_EXPORT pi_result piextGetMemoryConnection(pi_device device1, pi_context context1, pi_device device2, pi_context context2, memory_connection* res){
+  (void) device1;
+  (void) context1;
+  (void) device2;
+  (void) context2;
+  *res = MEMORY_CONNECTION_NONE;
+  return PI_SUCCESS;
+}
+
 pi_result piDevicesGet(pi_platform Platform, pi_device_type DeviceType,
                        pi_uint32 NumEntries, pi_device *Devices,
                        pi_uint32 *NumDevices) {
@@ -998,9 +1007,11 @@ pi_result piextQueueCreateWithNativeHandle(pi_native_handle, pi_context,
   DIE_NO_IMPLEMENTATION;
 }
 
-pi_result piMemBufferCreate(pi_context Context, pi_mem_flags Flags, size_t Size,
-                            void *HostPtr, pi_mem *RetMem,
+pi_result piMemBufferCreate(pi_context Context, pi_device Device,
+                            pi_mem_flags Flags, size_t Size, void *HostPtr,
+                            pi_mem *RetMem,
                             const pi_mem_properties *properties) {
+  ARG_UNUSED(Device);
   ARG_UNUSED(properties);
 
   if ((Flags & PI_MEM_FLAGS_ACCESS_RW) == 0) {
@@ -1150,10 +1161,12 @@ ConvertPiImageFormatToCmFormat(const pi_image_format *PiFormat) {
   return cm_support::CM_SURFACE_FORMAT_UNKNOWN;
 }
 
-pi_result piMemImageCreate(pi_context Context, pi_mem_flags Flags,
+pi_result piMemImageCreate(pi_context Context, pi_device Device,
+                           pi_mem_flags Flags,
                            const pi_image_format *ImageFormat,
                            const pi_image_desc *ImageDesc, void *HostPtr,
                            pi_mem *RetImage) {
+  (void)Device;
   if ((Flags & PI_MEM_FLAGS_ACCESS_RW) == 0) {
     PiTrace("Invalid memory attribute for piMemImageCreate");
     return PI_ERROR_INVALID_OPERATION;
