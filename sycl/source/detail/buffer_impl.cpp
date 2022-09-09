@@ -29,7 +29,7 @@ void *buffer_impl::allocateMem(ContextImplPtr Context, DeviceImplPtr Device,
          "Internal error. Allocating memory on the host "
          "while having use_host_ptr property");
   return MemoryManager::allocateMemBuffer(
-      std::move(Context), nullptr, this, HostPtr, HostPtrReadOnly,
+      std::move(Context), std::move(Device), this, HostPtr, HostPtrReadOnly,
       BaseT::getSizeInBytes(), BaseT::MInteropEvent, BaseT::MInteropContext,
       MProps, OutEventToWait);
 }
