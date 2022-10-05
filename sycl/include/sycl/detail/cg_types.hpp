@@ -228,6 +228,7 @@ public:
 class HostTask {
   std::function<void()> MHostTask;
   std::function<void(interop_handle)> MInteropTask;
+  property_list MPropertyList;
 
 public:
   HostTask() : MHostTask([]() {}) {}
@@ -238,6 +239,9 @@ public:
 
   void call() { MHostTask(); }
   void call(interop_handle handle) { MInteropTask(handle); }
+
+  friend class sycl::handler;
+  friend class DispatchHostTask;
 };
 
 // Class which stores specific lambda object.

@@ -27,6 +27,7 @@
 #include <sycl/detail/cg_types.hpp>
 #include <sycl/detail/kernel_desc.hpp>
 #include <sycl/sampler.hpp>
+#include <sycl/properties/host_task_properties.hpp>
 
 #include <cassert>
 #include <optional>
@@ -293,16 +294,19 @@ public:
 
     CGHostTask &HostTask = static_cast<CGHostTask &>(MThisCmd->getCG());
 
-    pi_result WaitResult = waitForEvents();
-    if (WaitResult != PI_SUCCESS) {
-      std::exception_ptr EPtr = std::make_exception_ptr(sycl::runtime_error(
-          std::string("Couldn't wait for host-task's dependencies"),
-          WaitResult));
-      HostTask.MQueue->reportAsyncException(EPtr);
+    if (!HostTask.MHostTask->MPropertyList
+             .has_property<property::host_task::manual_interop_sync>()) {
+      pi_result WaitResult = waitForEvents();
+      if (WaitResult != PI_SUCCESS) {
+        std::exception_ptr EPtr = std::make_exception_ptr(sycl::runtime_error(
+            std::string("Couldn't wait for host-task's dependencies"),
+            WaitResult));
+        HostTask.MQueue->reportAsyncException(EPtr);
 
-      // reset host-task's lambda and quit
-      HostTask.MHostTask.reset();
-      return;
+        // reset host-task's lambda and quit
+        HostTask.MHostTask.reset();
+        return;
+      }
     }
 
     try {
@@ -310,7 +314,9 @@ public:
       if (HostTask.MHostTask->isInteropTask()) {
         interop_handle IH{MReqToMem, HostTask.MQueue,
                           HostTask.MQueue->getDeviceImplPtr(),
-                          HostTask.MQueue->getContextImplPtr()};
+                          HostTask.MQueue->getContextImplPtr(),
+                          MThisCmd->getPiEvents(MThisCmd->MPreparedDepsEvents),
+                          HostTask.MHostTask->MPropertyList};
 
         HostTask.MHostTask->call(IH);
       } else

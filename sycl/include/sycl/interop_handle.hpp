@@ -14,6 +14,7 @@
 #include <sycl/detail/common.hpp>
 #include <sycl/detail/defines.hpp>
 #include <sycl/detail/pi.hpp>
+#include <sycl/properties/host_task_properties.hpp>
 
 #include <memory>
 
@@ -142,6 +143,25 @@ public:
 #endif
   }
 
+  template <backend Backend = backend::opencl>
+  std::vector<RT::PiEvent> get_native_events() {
+#ifndef __SYCL_DEVICE_ONLY__
+    if (!MPropertyList
+            .has_property<property::host_task::manual_interop_sync>()) {
+      throw sycl::exception(make_error_code(errc::feature_not_supported),
+                            "get_native_events can only be used in host task "
+                            "with manual_interop_sync property");
+    }
+    if (Backend != get_backend()) {
+      throw sycl::exception(make_error_code(errc::backend_mismatch),
+                            "Incorrect backend argument was passed");
+    }
+    return MRawEvents;
+#endif
+    throw sycl::exception(make_error_code(errc::feature_not_supported),
+                          "get_native_events should never be called on device");
+  }
+
 private:
   friend class detail::ExecCGCommand;
   friend class detail::DispatchHostTask;
@@ -150,9 +170,12 @@ private:
   interop_handle(std::vector<ReqToMem> MemObjs,
                  const std::shared_ptr<detail::queue_impl> &Queue,
                  const std::shared_ptr<detail::device_impl> &Device,
-                 const std::shared_ptr<detail::context_impl> &Context)
+                 const std::shared_ptr<detail::context_impl> &Context,
+                 std::vector<RT::PiEvent> RawEvents,
+                 property_list PropList = {})
       : MQueue(Queue), MDevice(Device), MContext(Context),
-        MMemObjs(std::move(MemObjs)) {}
+        MMemObjs(std::move(MemObjs)), MRawEvents(RawEvents),
+        MPropertyList(PropList) {}
 
   template <backend Backend, typename DataT, int Dims>
   backend_return_t<Backend, buffer<DataT, Dims>>
@@ -173,6 +196,8 @@ private:
   std::shared_ptr<detail::context_impl> MContext;
 
   std::vector<ReqToMem> MMemObjs;
+  std::vector<RT::PiEvent> MRawEvents;
+  property_list MPropertyList;
 };
 
 } // __SYCL_INLINE_VER_NAMESPACE(_V1)
