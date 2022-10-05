@@ -143,7 +143,6 @@ public:
 #endif
   }
 
-  template <backend Backend = backend::opencl>
   std::vector<RT::PiEvent> get_native_events() {
 #ifndef __SYCL_DEVICE_ONLY__
     if (!MPropertyList
@@ -151,10 +150,6 @@ public:
       throw sycl::exception(make_error_code(errc::feature_not_supported),
                             "get_native_events can only be used in host task "
                             "with manual_interop_sync property");
-    }
-    if (Backend != get_backend()) {
-      throw sycl::exception(make_error_code(errc::backend_mismatch),
-                            "Incorrect backend argument was passed");
     }
     return MRawEvents;
 #endif
