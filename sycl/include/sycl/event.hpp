@@ -147,6 +147,7 @@ private:
   template <backend BackendName, class SyclObjectT>
   friend auto get_native(const SyclObjectT &Obj)
       -> backend_return_t<BackendName, SyclObjectT>;
+  friend class interop_handle;
 };
 
 } // __SYCL_INLINE_VER_NAMESPACE(_V1)

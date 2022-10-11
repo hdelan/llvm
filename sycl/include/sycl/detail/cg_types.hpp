@@ -228,20 +228,32 @@ public:
 class HostTask {
   std::function<void()> MHostTask;
   std::function<void(interop_handle)> MInteropTask;
-  property_list MPropertyList;
+  std::shared_ptr<property_list> MPropertyList;
 
 public:
-  HostTask() : MHostTask([]() {}) {}
-  HostTask(std::function<void()> &&Func) : MHostTask(Func) {}
-  HostTask(std::function<void(interop_handle)> &&Func) : MInteropTask(Func) {}
+  HostTask() : MHostTask([]() {}) { std::cout << "HostTask()\n"; }
+  HostTask(std::function<void()> &&Func, std::shared_ptr<property_list>(PL))
+      : MHostTask(Func),
+        MPropertyList(PL) {
+    std::cout << "HostTask(Func(), PL)\n";
+  }
+  HostTask(std::function<void(interop_handle)> &&Func,
+           std::shared_ptr<property_list>(PL))
+      : MInteropTask(Func), MPropertyList(PL) {
+    std::cout << "HostTask(func(ih), PL)\n";
+  }
 
-  bool isInteropTask() const { return !!MInteropTask; }
+  bool isInteropTask() const {
+    return !!MInteropTask; }
 
-  void call() { MHostTask(); }
-  void call(interop_handle handle) { MInteropTask(handle); }
+  void call() {
+    MHostTask(); }
+  void call(interop_handle handle) {
+    MInteropTask(handle); }
 
   friend class sycl::handler;
   friend class DispatchHostTask;
+  friend class CGHostTask;
 };
 
 // Class which stores specific lambda object.

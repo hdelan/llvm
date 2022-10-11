@@ -1295,8 +1295,8 @@ private:
     MNDRDesc.set(range<1>(1));
     MArgs = std::move(MAssociatedAccesors);
 
-    MHostTask.reset(new detail::HostTask(std::move(Func)));
-    MHostTask->MPropertyList = std::move(PropList);
+    MHostTask.reset(new detail::HostTask(
+        std::move(Func), std::make_shared<property_list>(PropList)));
 
     setType(detail::CG::CodeplayHostTask);
   }

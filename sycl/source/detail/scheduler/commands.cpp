@@ -26,8 +26,8 @@
 #include <sycl/backend_types.hpp>
 #include <sycl/detail/cg_types.hpp>
 #include <sycl/detail/kernel_desc.hpp>
-#include <sycl/sampler.hpp>
 #include <sycl/properties/host_task_properties.hpp>
+#include <sycl/sampler.hpp>
 
 #include <cassert>
 #include <optional>
@@ -253,25 +253,26 @@ class DispatchHostTask {
       RequiredEventsPerPlugin[&Plugin].push_back(Event);
     }
 
-    // wait for dependency device events
-    // FIXME Current implementation of waiting for events will make the thread
-    // 'sleep' until all of dependency events are complete. We need a bit more
-    // sophisticated waiting mechanism to allow to utilize this thread for any
-    // other available job and resume once all required events are ready.
-    for (auto &PluginWithEvents : RequiredEventsPerPlugin) {
-      std::vector<RT::PiEvent> RawEvents =
-          MThisCmd->getPiEvents(PluginWithEvents.second);
-      try {
-        PluginWithEvents.first->call<PiApiKind::piEventsWait>(RawEvents.size(),
-                                                              RawEvents.data());
-      } catch (const sycl::exception &E) {
-        CGHostTask &HostTask = static_cast<CGHostTask &>(MThisCmd->getCG());
-        HostTask.MQueue->reportAsyncException(std::current_exception());
-        return (pi_result)E.get_cl_code();
-      } catch (...) {
-        CGHostTask &HostTask = static_cast<CGHostTask &>(MThisCmd->getCG());
-        HostTask.MQueue->reportAsyncException(std::current_exception());
-        return PI_ERROR_UNKNOWN;
+    std::cout << "Before dynamic cast:\n";
+    CGHostTask &HostTask = dynamic_cast<CGHostTask &>(MThisCmd->getCG());
+    std::cout << "After dynamic cast:\n";
+    if (!HostTask.MHostTask->MPropertyList
+             ->has_property<sycl::property::host_task::manual_interop_sync>()) {
+      for (auto &PluginWithEvents : RequiredEventsPerPlugin) {
+        std::vector<RT::PiEvent> RawEvents =
+            MThisCmd->getPiEvents(PluginWithEvents.second);
+        try {
+          PluginWithEvents.first->call<PiApiKind::piEventsWait>(
+              RawEvents.size(), RawEvents.data());
+          std::cout << "I'm waiting here " << __FILE__ << " : " << __LINE__
+                    << std::endl;
+        } catch (const sycl::exception &E) {
+          HostTask.MQueue->reportAsyncException(std::current_exception());
+          return (pi_result)E.get_cl_code();
+        } catch (...) {
+          HostTask.MQueue->reportAsyncException(std::current_exception());
+          return PI_ERROR_UNKNOWN;
+        }
       }
     }
 
@@ -295,7 +296,7 @@ public:
     CGHostTask &HostTask = static_cast<CGHostTask &>(MThisCmd->getCG());
 
     if (!HostTask.MHostTask->MPropertyList
-             .has_property<property::host_task::manual_interop_sync>()) {
+             ->has_property<property::host_task::manual_interop_sync>()) {
       pi_result WaitResult = waitForEvents();
       if (WaitResult != PI_SUCCESS) {
         std::exception_ptr EPtr = std::make_exception_ptr(sycl::runtime_error(
@@ -312,10 +313,11 @@ public:
     try {
       // we're ready to call the user-defined lambda now
       if (HostTask.MHostTask->isInteropTask()) {
-        interop_handle IH{MReqToMem, HostTask.MQueue,
+        interop_handle IH{MReqToMem,
+                          HostTask.MQueue,
                           HostTask.MQueue->getDeviceImplPtr(),
                           HostTask.MQueue->getContextImplPtr(),
-                          MThisCmd->getPiEvents(MThisCmd->MPreparedDepsEvents),
+                          MThisCmd->MPreparedDepsEvents,
                           HostTask.MHostTask->MPropertyList};
 
         HostTask.MHostTask->call(IH);
@@ -2466,12 +2468,18 @@ pi_int32 ExecCGCommand::enqueueImp() {
     return PI_SUCCESS;
   }
   case CG::CGTYPE::CodeplayInteropTask: {
+    std::cout << "In CodeplayInteropTask " << __FILE__ << " : " << __LINE__
+              << std::endl;
     const detail::plugin &Plugin = MQueue->getPlugin();
     CGInteropTask *ExecInterop = (CGInteropTask *)MCommandGroup.get();
     // Wait for dependencies to complete before dispatching work on the host
     // TODO: Use a callback to dispatch the interop task instead of waiting for
     //  the event
+    //
+    //  We don't want this wait to happen
     if (!RawEvents.empty()) {
+      std::cout << "We are waiting in " << __FILE__ << " : " << __LINE__
+                << std::endl;
       Plugin.call<PiApiKind::piEventsWait>(RawEvents.size(), &RawEvents[0]);
     }
     std::vector<interop_handler::ReqToMem> ReqMemObjs;
@@ -2495,6 +2503,8 @@ pi_int32 ExecCGCommand::enqueueImp() {
     return PI_SUCCESS;
   }
   case CG::CGTYPE::CodeplayHostTask: {
+    std::cout << "In CodeplayHostTask " << __FILE__ << " : " << __LINE__
+              << std::endl;
     CGHostTask *HostTask = static_cast<CGHostTask *>(MCommandGroup.get());
 
     for (ArgDesc &Arg : HostTask->MArgs) {

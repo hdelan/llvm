@@ -28,6 +28,8 @@ class DispatchHostTask;
 class queue_impl;
 class device_impl;
 class context_impl;
+
+using EventImplPtr = std::shared_ptr<event_impl>;
 } // namespace detail
 
 class queue;
@@ -143,15 +145,24 @@ public:
 #endif
   }
 
-  std::vector<RT::PiEvent> get_native_events() {
+  template <backend Backend = backend::opencl>
+  std::vector<backend_return_t<Backend, event>> get_native_events() {
 #ifndef __SYCL_DEVICE_ONLY__
     if (!MPropertyList
-            .has_property<property::host_task::manual_interop_sync>()) {
+            ->has_property<property::host_task::manual_interop_sync>()) {
       throw sycl::exception(make_error_code(errc::feature_not_supported),
                             "get_native_events can only be used in host task "
                             "with manual_interop_sync property");
     }
-    return MRawEvents;
+    std::vector<backend_return_t<Backend, event>> native_events;
+    for (auto &EventImplPtr : MEventImplPtrs){
+      if (EventImplPtr) {
+        native_events.push_back(static_cast<backend_return_t<Backend, event>>(
+            get_native<Backend,event>(event(EventImplPtr))));
+      }
+    }
+    std::cout << "native_events.size(): " << native_events.size() << std::endl;
+    return native_events;
 #endif
     throw sycl::exception(make_error_code(errc::feature_not_supported),
                           "get_native_events should never be called on device");
@@ -166,11 +177,11 @@ private:
                  const std::shared_ptr<detail::queue_impl> &Queue,
                  const std::shared_ptr<detail::device_impl> &Device,
                  const std::shared_ptr<detail::context_impl> &Context,
-                 std::vector<RT::PiEvent> RawEvents,
-                 property_list PropList = {})
+                 std::vector<detail::EventImplPtr> EventImplPtrs,
+                 std::shared_ptr<property_list> PropList = {})
       : MQueue(Queue), MDevice(Device), MContext(Context),
-        MMemObjs(std::move(MemObjs)), MRawEvents(RawEvents),
-        MPropertyList(PropList) {}
+        MPropertyList(PropList), MMemObjs(std::move(MemObjs)),
+        MEventImplPtrs(EventImplPtrs) {}
 
   template <backend Backend, typename DataT, int Dims>
   backend_return_t<Backend, buffer<DataT, Dims>>
@@ -189,10 +200,10 @@ private:
   std::shared_ptr<detail::queue_impl> MQueue;
   std::shared_ptr<detail::device_impl> MDevice;
   std::shared_ptr<detail::context_impl> MContext;
+  std::shared_ptr<property_list> MPropertyList;
 
   std::vector<ReqToMem> MMemObjs;
-  std::vector<RT::PiEvent> MRawEvents;
-  property_list MPropertyList;
+  std::vector<detail::EventImplPtr> MEventImplPtrs;
 };
 
 } // __SYCL_INLINE_VER_NAMESPACE(_V1)

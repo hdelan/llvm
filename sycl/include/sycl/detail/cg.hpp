@@ -374,7 +374,13 @@ public:
            std::move(SharedPtrStorage), std::move(Requirements),
            std::move(Events), std::move(loc)),
         MHostTask(std::move(HostTask)), MQueue(Queue), MContext(Context),
-        MArgs(std::move(Args)) {}
+        MArgs(std::move(Args)) {
+    std::cout
+        << "CGHostTask(...) with HostTask has property: "
+        << MHostTask->MPropertyList
+               ->has_property<sycl::property::host_task::manual_interop_sync>()
+        << std::endl;
+  }
 };
 
 class CGBarrier : public CG {
