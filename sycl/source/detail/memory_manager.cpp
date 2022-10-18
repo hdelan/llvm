@@ -124,7 +124,7 @@ static void waitForEvents(const std::vector<EventImplPtr> &Events) {
   }
 }
 
-void memBufferCreateHelper(const plugin &Plugin, pi_context Ctx,
+void memBufferCreateHelper(const plugin &Plugin, pi_context Ctx, pi_device Dev,
                            pi_mem_flags Flags, size_t Size, void *HostPtr,
                            pi_mem *RetMem, const pi_mem_properties *Props) {
 #ifdef XPTI_ENABLE_INSTRUMENTATION
@@ -147,8 +147,8 @@ void memBufferCreateHelper(const plugin &Plugin, pi_context Ctx,
                            CorrID);
     }};
 #endif
-    Plugin.call<PiApiKind::piMemBufferCreate>(Ctx, Flags, Size, HostPtr, RetMem,
-                                              Props);
+    Plugin.call<PiApiKind::piMemBufferCreate>(Ctx, Dev, Flags, Size, HostPtr,
+                                              RetMem, Props);
   }
 }
 
@@ -260,7 +260,8 @@ void MemoryManager::releaseMemObj(ContextImplPtr TargetContext,
   memReleaseHelper(Plugin, pi::cast<RT::PiMem>(MemAllocation));
 }
 
-void *MemoryManager::allocate(ContextImplPtr TargetContext, SYCLMemObjI *MemObj,
+void *MemoryManager::allocate(ContextImplPtr TargetContext,
+                              DeviceImplPtr TargetDevice, SYCLMemObjI *MemObj,
                               bool InitFromUserData, void *HostPtr,
                               std::vector<EventImplPtr> DepEvents,
                               RT::PiEvent &OutEvent) {
@@ -269,8 +270,8 @@ void *MemoryManager::allocate(ContextImplPtr TargetContext, SYCLMemObjI *MemObj,
   waitForEvents(DepEvents);
   OutEvent = nullptr;
 
-  return MemObj->allocateMem(TargetContext, InitFromUserData, HostPtr,
-                             OutEvent);
+  return MemObj->allocateMem(TargetContext, TargetDevice, InitFromUserData,
+                             HostPtr, OutEvent);
 }
 
 void *MemoryManager::allocateHostMemory(SYCLMemObjI *MemObj, void *UserPtr,
@@ -316,6 +317,7 @@ static RT::PiMemFlags getMemObjCreationFlags(void *UserPtr,
 }
 
 void *MemoryManager::allocateImageObject(ContextImplPtr TargetContext,
+                                         DeviceImplPtr TargetDevice,
                                          void *UserPtr, bool HostPtrReadOnly,
                                          const RT::PiMemImageDesc &Desc,
                                          const RT::PiMemImageFormat &Format,
@@ -325,14 +327,15 @@ void *MemoryManager::allocateImageObject(ContextImplPtr TargetContext,
 
   RT::PiMem NewMem;
   const detail::plugin &Plugin = TargetContext->getPlugin();
-  Plugin.call<PiApiKind::piMemImageCreate>(TargetContext->getHandleRef(),
-                                           CreationFlags, &Format, &Desc,
-                                           UserPtr, &NewMem);
+  Plugin.call<PiApiKind::piMemImageCreate>(
+      TargetContext->getHandleRef(), TargetDevice->getHandleRef(),
+      CreationFlags, &Format, &Desc, UserPtr, &NewMem);
   return NewMem;
 }
 
 void *
-MemoryManager::allocateBufferObject(ContextImplPtr TargetContext, void *UserPtr,
+MemoryManager::allocateBufferObject(ContextImplPtr TargetContext,
+                                    DeviceImplPtr TargetDevice, void *UserPtr,
                                     bool HostPtrReadOnly, const size_t Size,
                                     const sycl::property_list &PropsList) {
   RT::PiMemFlags CreationFlags =
@@ -352,21 +355,21 @@ MemoryManager::allocateBufferObject(ContextImplPtr TargetContext, void *UserPtr,
       pi_mem_properties props[3] = {PI_MEM_PROPERTIES_ALLOC_BUFFER_LOCATION,
                                     location, 0};
       memBufferCreateHelper(Plugin, TargetContext->getHandleRef(),
-                            CreationFlags, Size, UserPtr, &NewMem, props);
+                            TargetDevice->getHandleRef(), CreationFlags, Size,
+                            UserPtr, &NewMem, props);
       return NewMem;
     }
-  memBufferCreateHelper(Plugin, TargetContext->getHandleRef(), CreationFlags,
-                        Size, UserPtr, &NewMem, nullptr);
+  memBufferCreateHelper(Plugin, TargetContext->getHandleRef(),
+                        TargetDevice->getHandleRef(), CreationFlags, Size,
+                        UserPtr, &NewMem, nullptr);
   return NewMem;
 }
 
-void *MemoryManager::allocateMemBuffer(ContextImplPtr TargetContext,
-                                       SYCLMemObjI *MemObj, void *UserPtr,
-                                       bool HostPtrReadOnly, size_t Size,
-                                       const EventImplPtr &InteropEvent,
-                                       const ContextImplPtr &InteropContext,
-                                       const sycl::property_list &PropsList,
-                                       RT::PiEvent &OutEventToWait) {
+void *MemoryManager::allocateMemBuffer(
+    ContextImplPtr TargetContext, DeviceImplPtr TargetDevice,
+    SYCLMemObjI *MemObj, void *UserPtr, bool HostPtrReadOnly, size_t Size,
+    const EventImplPtr &InteropEvent, const ContextImplPtr &InteropContext,
+    const sycl::property_list &PropsList, RT::PiEvent &OutEventToWait) {
   void *MemPtr;
   if (TargetContext->is_host())
     MemPtr =
@@ -376,26 +379,26 @@ void *MemoryManager::allocateMemBuffer(ContextImplPtr TargetContext,
         allocateInteropMemObject(TargetContext, UserPtr, InteropEvent,
                                  InteropContext, PropsList, OutEventToWait);
   else
-    MemPtr = allocateBufferObject(TargetContext, UserPtr, HostPtrReadOnly, Size,
-                                  PropsList);
+    MemPtr = allocateBufferObject(TargetContext, TargetDevice, UserPtr,
+                                  HostPtrReadOnly, Size, PropsList);
   XPTIRegistry::bufferAssociateNotification(MemObj, MemPtr);
   return MemPtr;
 }
 
 void *MemoryManager::allocateMemImage(
-    ContextImplPtr TargetContext, SYCLMemObjI *MemObj, void *UserPtr,
-    bool HostPtrReadOnly, size_t Size, const RT::PiMemImageDesc &Desc,
-    const RT::PiMemImageFormat &Format, const EventImplPtr &InteropEvent,
-    const ContextImplPtr &InteropContext, const sycl::property_list &PropsList,
-    RT::PiEvent &OutEventToWait) {
+    ContextImplPtr TargetContext, DeviceImplPtr TargetDevice,
+    SYCLMemObjI *MemObj, void *UserPtr, bool HostPtrReadOnly, size_t Size,
+    const RT::PiMemImageDesc &Desc, const RT::PiMemImageFormat &Format,
+    const EventImplPtr &InteropEvent, const ContextImplPtr &InteropContext,
+    const sycl::property_list &PropsList, RT::PiEvent &OutEventToWait) {
   if (TargetContext->is_host())
     return allocateHostMemory(MemObj, UserPtr, HostPtrReadOnly, Size,
                               PropsList);
   if (UserPtr && InteropContext)
     return allocateInteropMemObject(TargetContext, UserPtr, InteropEvent,
                                     InteropContext, PropsList, OutEventToWait);
-  return allocateImageObject(TargetContext, UserPtr, HostPtrReadOnly, Desc,
-                             Format, PropsList);
+  return allocateImageObject(TargetContext, TargetDevice, UserPtr,
+                             HostPtrReadOnly, Desc, Format, PropsList);
 }
 
 void *MemoryManager::allocateMemSubBuffer(ContextImplPtr TargetContext,

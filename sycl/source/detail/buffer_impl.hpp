@@ -145,8 +145,9 @@ public:
       : BaseT(MemObject, SyclContext, SizeInBytes, std::move(AvailableEvent),
               std::move(Allocator)) {}
 
-  void *allocateMem(ContextImplPtr Context, bool InitFromUserData,
-                    void *HostPtr, RT::PiEvent &OutEventToWait) override;
+  void *allocateMem(ContextImplPtr Context, DeviceImplPtr Device,
+                    bool InitFromUserData, void *HostPtr,
+                    RT::PiEvent &OutEventToWait) override;
   void constructorNotification(const detail::code_location &CodeLoc,
                                void *UserObj, const void *HostObj,
                                const void *Type, uint32_t Dim,

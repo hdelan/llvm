@@ -244,8 +244,8 @@ static pi_result redefinedEventsWaitNegative(pi_uint32 num_events,
 }
 
 static pi_result
-redefinedMemBufferCreate(pi_context context, pi_mem_flags flags, size_t size,
-                         void *host_ptr, pi_mem *ret_mem,
+redefinedMemBufferCreate(pi_context context, pi_device, pi_mem_flags flags,
+                         size_t size, void *host_ptr, pi_mem *ret_mem,
                          const pi_mem_properties *properties = nullptr) {
   static size_t MemAddrCounter = 1;
   *ret_mem = (pi_mem)MemAddrCounter++;
