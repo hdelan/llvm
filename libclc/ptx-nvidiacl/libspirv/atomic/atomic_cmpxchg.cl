@@ -70,10 +70,10 @@ _CLC_OVERLOAD _CLC_DECL void __spirv_MemoryBarrier(unsigned int, unsigned int);
   }
 
 #define __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                             \
-    TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, OP_MANGLED, ADDR_SPACE,                                                                                   \
-    ADDR_SPACE_MANGLED, ADDR_SPACE_NV)                                                                                                                          \
-  _CLC_DECL TYPE                                                                                                                                                \
-      _Z29__spirv_Atomic##OP_MANGLED##PU3##ADDR_SPACE_MANGLED##TYPE_MANGLED##N5__spv5Scope4FlagENS1_19MemorySemanticsMask4FlagES5_##TYPE_MANGLED##TYPE_MANGLED( \
+    FN_MANGLED, TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, ADDR_SPACE,                                                                                   \
+    ADDR_SPACE_NV)                                                                                                                          \
+  __attribute__((always_inline)) _CLC_DECL TYPE                                                                                                                 \
+      FN_MANGLED( \
           volatile ADDR_SPACE TYPE *pointer, enum Scope scope,                                                                                                  \
           enum MemorySemanticsMask semantics1,                                                                                                                  \
           enum MemorySemanticsMask semantics2, TYPE cmp, TYPE value) {                                                                                          \
@@ -118,21 +118,24 @@ Memory order is stored in the lowest 5 bits */                                  
     __builtin_unreachable();                                                                                                                                    \
   }
 
-#define __CLC_NVVM_ATOMIC_CAS(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV,    \
-                              OP, OP_MANGLED)                                  \
-  __attribute__((always_inline))                                               \
-  __CLC_NVVM_ATOMIC_CAS_IMPL(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, \
-                             OP_MANGLED, __global, AS1, _global_)              \
-      __attribute__((always_inline))                                           \
-      __CLC_NVVM_ATOMIC_CAS_IMPL(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, \
-                                 OP, OP_MANGLED, __local, AS3, _shared_)
+#define __CLC_NVVM_ATOMIC_CAS(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV,                                                                       \
+                              OP)                                                                                                                 \
+  __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                     \
+      _Z29__spirv_AtomicCompareExchange##P##TYPE_MANGLED##N5__spv5Scope4FlagENS0_19MemorySemanticsMask4FlagES4_##TYPE_MANGLED##TYPE_MANGLED,      \
+      TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, , _gen_)                                                                                  \
+  __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                     \
+      _Z29__spirv_AtomicCompareExchange##PU3AS1##TYPE_MANGLED##N5__spv5Scope4FlagENS1_19MemorySemanticsMask4FlagES5_##TYPE_MANGLED##TYPE_MANGLED, \
+      TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, __global, _global_)                                                                       \
+  __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                     \
+      _Z29__spirv_AtomicCompareExchange##PU3AS3##TYPE_MANGLED##N5__spv5Scope4FlagENS1_19MemorySemanticsMask4FlagES5_##TYPE_MANGLED##TYPE_MANGLED, \
+      TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, __local, _shared_)
 
-__CLC_NVVM_ATOMIC_CAS(int, i, int, i, cas, CompareExchange)
-__CLC_NVVM_ATOMIC_CAS(long, l, long, l, cas, CompareExchange)
-__CLC_NVVM_ATOMIC_CAS(unsigned int, j, int, i, cas, CompareExchange)
-__CLC_NVVM_ATOMIC_CAS(unsigned long, m, long, l, cas, CompareExchange)
-__CLC_NVVM_ATOMIC_CAS(float, f, float, f, cas, CompareExchange)
-__CLC_NVVM_ATOMIC_CAS(double, d, double, d, cas, CompareExchange)
+__CLC_NVVM_ATOMIC_CAS(int, i, int, i, cas)
+__CLC_NVVM_ATOMIC_CAS(long, l, long, l, cas)
+__CLC_NVVM_ATOMIC_CAS(unsigned int, j, int, i, cas)
+__CLC_NVVM_ATOMIC_CAS(unsigned long, m, long, l, cas)
+__CLC_NVVM_ATOMIC_CAS(float, f, float, f, cas)
+__CLC_NVVM_ATOMIC_CAS(double, d, double, d, cas)
 
 #undef __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER
 #undef __CLC_NVVM_ATOMIC_CAS
