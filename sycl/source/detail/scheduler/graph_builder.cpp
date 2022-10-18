@@ -565,12 +565,15 @@ Scheduler::GraphBuilder::findDepsForReq(MemObjRecord *Record,
   std::vector<Command *> Visited;
   const bool ReadOnlyReq = Req->MAccessMode == access::mode::read;
 
+  // Size 1 for host_task 1
   std::vector<Command *> ToAnalyze{Record->MWriteLeaves.toVector()};
 
   if (!ReadOnlyReq) {
+    // HT1 in here
     std::vector<Command *> V{Record->MReadLeaves.toVector()};
 
-    ToAnalyze.insert(ToAnalyze.begin(), V.begin(), V.end());
+    ToAnalyze.insert(ToAnalyze.begin(), V.begin(),
+                     V.end()); // HT1 nothing inserted
   }
 
   while (!ToAnalyze.empty()) {
@@ -579,7 +582,7 @@ Scheduler::GraphBuilder::findDepsForReq(MemObjRecord *Record,
 
     std::vector<Command *> NewAnalyze;
 
-    for (const DepDesc &Dep : DepCmd->MDeps) {
+    for (const DepDesc &Dep : DepCmd->MDeps) { // HT1 size 6
       if (Dep.MDepRequirement->MSYCLMemObj != Req->MSYCLMemObj)
         continue;
 
@@ -1023,7 +1026,6 @@ Scheduler::GraphBuilder::addCG(std::unique_ptr<detail::CG> CommandGroup,
     NewCmd->MEmptyCmd =
         addEmptyCmd(NewCmd.get(), NewCmd->getCG().MRequirements, Queue,
                     Command::BlockReason::HostTask, ToEnqueue);
-
   if (MPrintOptionsArray[AfterAddCG])
     printGraphAsDot("after_addCG");
 

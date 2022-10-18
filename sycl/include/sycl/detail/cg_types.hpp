@@ -242,18 +242,60 @@ public:
       : MInteropTask(Func), MPropertyList(PL) {
     std::cout << "HostTask(func(ih), PL)\n";
   }
+  HostTask(std::shared_ptr<property_list>(PL))
+      : MPropertyList(PL) {
+    std::cout << "HostTask(PL)\n";
+  }
 
-  bool isInteropTask() const {
+  template <typename T>
+  bool hasProperty() {
+    if (MPropertyList) {
+      return MPropertyList->has_property<T>();
+    }
+    return false;
+  }
+
+  virtual bool isInteropTask() const {
     return !!MInteropTask; }
 
-  void call() {
-    MHostTask(); }
-  void call(interop_handle handle) {
-    MInteropTask(handle); }
+  void call() { MHostTask(); }
+  virtual void call(interop_handle handle) { MInteropTask(handle); }
+  virtual bool hasNativeEvents() const { return false; }
 
   friend class sycl::handler;
   friend class DispatchHostTask;
   friend class CGHostTask;
+};
+
+template <backend Backend> class NativeEventsHostTask : public HostTask {
+  std::function<backend_return_t<Backend, event>(interop_handle)> MHostTask;
+  backend_return_t<Backend, event> MNativeEvents;
+
+public:
+  NativeEventsHostTask() = delete;
+  NativeEventsHostTask(
+      std::function<backend_return_t<Backend, event>(interop_handle)> &&Func,
+      std::shared_ptr<property_list> PL)
+      : MHostTask(Func), HostTask(PL) {
+    std::cout << "NativeEventsHostTask(std::function<backend_return_"
+                 "t<Backend, event>(interop_handle)> &&Func)"
+              << std::endl;
+    std::cout << "PL.has_property: "
+              << hasProperty<property::host_task::manual_interop_sync>()
+              << std::endl;
+  };
+
+  void call(interop_handle handle) override {
+    MNativeEvents = MHostTask(handle);
+    std::cout << "Got native events from kernel: " << MNativeEvents.size()
+              << std::endl;
+  }
+  bool hasNativeEvents() const override { return true; }
+  backend_return_t<Backend, event> getNativeEvents() const {
+    return MNativeEvents;
+  }
+  bool isInteropTask() const override { return true; }
+  backend getBackend() const { return Backend; };
 };
 
 // Class which stores specific lambda object.

@@ -85,6 +85,23 @@ public:
 
     MDoSmthOrStop.notify_one();
   }
+  
+  template <typename T> void submit_and_wait(T &&Func) {
+    std::atomic_bool job_finished(false);
+    {
+      std::lock_guard<std::mutex> Lock(MJobQueueMutex);
+      MJobQueue.emplace([F = std::move(Func), &job_finished]() { 
+        F();
+        job_finished.store(true);
+      });
+    }
+
+    MDoSmthOrStop.notify_one();
+
+    // Wait until job has finished
+    while (!job_finished.load())
+      ;
+  }
 
   void submit(std::function<void()> &&Func) {
     {

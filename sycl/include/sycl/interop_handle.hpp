@@ -30,6 +30,11 @@ class device_impl;
 class context_impl;
 
 using EventImplPtr = std::shared_ptr<event_impl>;
+
+extern bool hasNativeInteropEvents(EventImplPtr);
+template <backend Backend>
+extern backend_return_t<Backend, event> getNativeInteropEvents(EventImplPtr);
+extern void waitOnNativeInteropEvents(EventImplPtr);
 } // namespace detail
 
 class queue;
@@ -146,19 +151,39 @@ public:
   }
 
   template <backend Backend = backend::opencl>
-  std::vector<backend_return_t<Backend, event>> get_native_events() {
+  backend_return_t<Backend, event> get_native_events() {
 #ifndef __SYCL_DEVICE_ONLY__
     if (!MPropertyList
-            ->has_property<property::host_task::manual_interop_sync>()) {
+             ->has_property<property::host_task::manual_interop_sync>()) {
       throw sycl::exception(make_error_code(errc::feature_not_supported),
                             "get_native_events can only be used in host task "
                             "with manual_interop_sync property");
     }
-    std::vector<backend_return_t<Backend, event>> native_events;
-    for (auto &EventImplPtr : MEventImplPtrs){
-      if (EventImplPtr) {
-        native_events.push_back(static_cast<backend_return_t<Backend, event>>(
-            get_native<Backend,event>(event(EventImplPtr))));
+    if (Backend != backend::opencl) {
+      throw sycl::exception(make_error_code(errc::feature_not_supported),
+                            "Get native events is only supported in openCL ");
+    }
+    std::cout << "ih.get_native_events(): MEventImplPtrs.size() = "
+              << MDepEventImplPtrs.size() << std::endl;
+    backend_return_t<Backend, event> native_events;
+    for (auto &eventImplPtr : MDepEventImplPtrs) {
+      if (eventImplPtr) {
+        auto eventImplPtrNativeEvents =
+            get_native<Backend, event>(event(eventImplPtr));
+        native_events.insert(native_events.end(),
+                             eventImplPtrNativeEvents.begin(),
+                             eventImplPtrNativeEvents.end());
+
+        // If previously enqueued host_tasks have returned native events,
+        // add them to the vector of events
+        if (hasNativeInteropEvents(eventImplPtr)) {
+          std::cout << "In here!!12345\n";
+          waitOnNativeInteropEvents(eventImplPtr);
+          auto nativeInteropEvents =
+              detail::getNativeInteropEvents<Backend>(eventImplPtr);
+          native_events.insert(native_events.end(), nativeInteropEvents.begin(),
+                               nativeInteropEvents.end());
+        }
       }
     }
     std::cout << "native_events.size(): " << native_events.size() << std::endl;
@@ -181,7 +206,7 @@ private:
                  std::shared_ptr<property_list> PropList = {})
       : MQueue(Queue), MDevice(Device), MContext(Context),
         MPropertyList(PropList), MMemObjs(std::move(MemObjs)),
-        MEventImplPtrs(EventImplPtrs) {}
+        MDepEventImplPtrs(EventImplPtrs) {}
 
   template <backend Backend, typename DataT, int Dims>
   backend_return_t<Backend, buffer<DataT, Dims>>
@@ -203,7 +228,7 @@ private:
   std::shared_ptr<property_list> MPropertyList;
 
   std::vector<ReqToMem> MMemObjs;
-  std::vector<detail::EventImplPtr> MEventImplPtrs;
+  std::vector<detail::EventImplPtr> MDepEventImplPtrs;
 };
 
 } // __SYCL_INLINE_VER_NAMESPACE(_V1)

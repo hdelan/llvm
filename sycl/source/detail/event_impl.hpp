@@ -9,6 +9,7 @@
 #pragma once
 
 #include <detail/plugin.hpp>
+#include <sycl/backend.hpp>
 #include <sycl/detail/cl.h>
 #include <sycl/detail/common.hpp>
 #include <sycl/detail/host_profiling_info.hpp>
@@ -32,6 +33,22 @@ class queue_impl;
 using QueueImplPtr = std::shared_ptr<sycl::detail::queue_impl>;
 class event_impl;
 using EventImplPtr = std::shared_ptr<sycl::detail::event_impl>;
+
+class nativeEventsBuffer {
+public:
+  virtual ~nativeEventsBuffer() = default;
+};
+
+template <backend Backend>
+class backendNativeEventsBuffer : public nativeEventsBuffer {
+  backend_return_t<Backend, event> nativeEvents;
+
+public:
+  backendNativeEventsBuffer() = delete;
+  backendNativeEventsBuffer(backend_return_t<Backend, event> Evs)
+      : nativeEvents(Evs){};
+  backend_return_t<Backend, event>& getEvents() { return nativeEvents; }
+};
 
 class event_impl {
 public:
@@ -172,6 +189,38 @@ public:
   /// \return a native handle.
   pi_native_handle getNative();
 
+  template <backend Backend>
+  void setNativeInteropEvents(backend_return_t<Backend, event> nativeEvents) {
+    assert(!MNativeEvents && "setNativeEvents should only be called once per"
+                             "event_impl");
+    std::cout << "In setNativeEvents with native_events.size: "
+              << nativeEvents.size() << "\n";
+    MNativeEvents.reset(new backendNativeEventsBuffer<Backend>(nativeEvents));
+    {
+      auto ul = std::unique_lock<std::mutex>(MMutex);
+      MNativeEventsPopulated = true;
+      MIsInitialized = true;
+    }
+    cv.notify_one();
+  }
+
+  template <backend Backend>
+  backend_return_t<Backend, event> getNativeInteropEvents() {
+    auto evs =
+        dynamic_cast<backendNativeEventsBuffer<Backend> *>(MNativeEvents.get())
+            ->getEvents();
+    std::cout << "getNativeInteropEvents has size: " << evs.size() << std::endl;
+    return evs;
+  }
+
+  bool hasNativeEvents() const { return MHasNativeEvents; }
+  void setHasNativeEvents(const bool val) { MHasNativeEvents = val; }
+  void waitOnNativeInteropEvents() {
+    auto ul = std::unique_lock<std::mutex>(MMutex);
+    cv.wait(ul, [this]() { return MNativeEventsPopulated; });
+    std::cout << "nativeEvents has been populated!\n";
+  }
+
   /// Returns vector of event dependencies.
   ///
   /// @return a reference to MPreparedDepsEvents.
@@ -266,6 +315,10 @@ private:
   /// the queue to the device.
   std::atomic<bool> MIsFlushed = false;
 
+  bool MHasNativeEvents = false;
+  bool MNativeEventsPopulated = false;
+  std::unique_ptr<nativeEventsBuffer> MNativeEvents;
+
   // State of host event. Employed only for host events and event with no
   // backend's representation (e.g. alloca). Used values are listed in
   // HostEventState enum.
@@ -280,6 +333,8 @@ private:
   std::mutex MMutex;
   std::condition_variable cv;
 
+  friend class interop_handle;
+
   friend std::vector<RT::PiEvent>
   getOrWaitEvents(std::vector<sycl::event> DepEvents,
                   std::shared_ptr<sycl::detail::context_impl> Context);
@@ -287,4 +342,9 @@ private:
 
 } // namespace detail
 } // __SYCL_INLINE_VER_NAMESPACE(_V1)
+template <backend Backend>
+backend_return_t<Backend, event>
+detail::getNativeInteropEvents(std::shared_ptr<event_impl> EPtr) {
+  return EPtr->getNativeInteropEvents<Backend>();
+}
 } // namespace sycl

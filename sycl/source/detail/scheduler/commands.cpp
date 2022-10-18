@@ -23,6 +23,7 @@
 #include <detail/stream_impl.hpp>
 #include <detail/xpti_registry.hpp>
 #include <sycl/access/access.hpp>
+#include <sycl/backend.hpp>
 #include <sycl/backend_types.hpp>
 #include <sycl/detail/cg_types.hpp>
 #include <sycl/detail/kernel_desc.hpp>
@@ -222,6 +223,7 @@ Command::getPiEvents(const std::vector<EventImplPtr> &EventImpls) const {
       continue;
 
     RetPiEvents.push_back(EventImpl->getHandleRef());
+    std::cout << "Events.push_back: " << __FILE__ << __LINE__ << std::endl;
   }
 
   return RetPiEvents;
@@ -250,29 +252,23 @@ class DispatchHostTask {
 
     for (const EventImplPtr &Event : MThisCmd->MPreparedDepsEvents) {
       const detail::plugin &Plugin = Event->getPlugin();
+      std::cout << "Events.push_back: " << __FILE__ << __LINE__ << std::endl;
       RequiredEventsPerPlugin[&Plugin].push_back(Event);
     }
 
-    std::cout << "Before dynamic cast:\n";
     CGHostTask &HostTask = dynamic_cast<CGHostTask &>(MThisCmd->getCG());
-    std::cout << "After dynamic cast:\n";
-    if (!HostTask.MHostTask->MPropertyList
-             ->has_property<sycl::property::host_task::manual_interop_sync>()) {
-      for (auto &PluginWithEvents : RequiredEventsPerPlugin) {
-        std::vector<RT::PiEvent> RawEvents =
-            MThisCmd->getPiEvents(PluginWithEvents.second);
-        try {
-          PluginWithEvents.first->call<PiApiKind::piEventsWait>(
-              RawEvents.size(), RawEvents.data());
-          std::cout << "I'm waiting here " << __FILE__ << " : " << __LINE__
-                    << std::endl;
-        } catch (const sycl::exception &E) {
-          HostTask.MQueue->reportAsyncException(std::current_exception());
-          return (pi_result)E.get_cl_code();
-        } catch (...) {
-          HostTask.MQueue->reportAsyncException(std::current_exception());
-          return PI_ERROR_UNKNOWN;
-        }
+    for (auto &PluginWithEvents : RequiredEventsPerPlugin) {
+      std::vector<RT::PiEvent> RawEvents =
+          MThisCmd->getPiEvents(PluginWithEvents.second);
+      try {
+        PluginWithEvents.first->call<PiApiKind::piEventsWait>(RawEvents.size(),
+                                                              RawEvents.data());
+      } catch (const sycl::exception &E) {
+        HostTask.MQueue->reportAsyncException(std::current_exception());
+        return (pi_result)E.get_cl_code();
+      } catch (...) {
+        HostTask.MQueue->reportAsyncException(std::current_exception());
+        return PI_ERROR_UNKNOWN;
       }
     }
 
@@ -313,6 +309,8 @@ public:
     try {
       // we're ready to call the user-defined lambda now
       if (HostTask.MHostTask->isInteropTask()) {
+        std::cout << "Making interop_handle with dep events: "
+                  << MThisCmd->MPreparedDepsEvents.size() << "\n";
         interop_handle IH{MReqToMem,
                           HostTask.MQueue,
                           HostTask.MQueue->getDeviceImplPtr(),
@@ -327,8 +325,22 @@ public:
       HostTask.MQueue->reportAsyncException(std::current_exception());
     }
 
-    HostTask.MHostTask.reset();
+    if (HostTask.MHostTask->hasNativeEvents()) {
+      auto NativeEventsHT =
+          dynamic_cast<NativeEventsHostTask<backend::opencl> *>(
+              HostTask.MHostTask.get());
+      if (NativeEventsHT && NativeEventsHT->getBackend() == backend::opencl) {
+        std::cout << "Getting native event dependencies for new host_task!\n";
+        MThisCmd->MEvent->setNativeInteropEvents<backend::opencl>(
+            NativeEventsHT->getNativeEvents());
+      } else {
+        throw sycl::exception(errc::invalid,
+                              "Host task manual interop"
+                              "sync is currently only enabled for opencl");
+      }
+    }
 
+    HostTask.MHostTask.reset();
     // unblock user empty command here
     EmptyCommand *EmptyCmd = MThisCmd->MEmptyCmd;
     assert(EmptyCmd && "No empty command found");
@@ -345,6 +357,7 @@ public:
       Scheduler::ReadLockT Lock(Sched.MGraphLock);
 
       std::vector<DepDesc> Deps = MThisCmd->MDeps;
+      std::cout << "Command has deps: " << MThisCmd->MDeps.size() << std::endl;
 
       // update self-event status
       MThisCmd->MEvent->setComplete();
@@ -390,6 +403,7 @@ void Command::waitForEvents(QueueImplPtr Queue,
         ContextImplPtr Context = Event->getContextImpl();
         assert(Context.get() &&
                "Only non-host events are expected to be waited for here");
+        std::cout << "Events.push_back: " << __FILE__ << __LINE__ << std::endl;
         RequiredEventsPerContext[Context.get()].push_back(Event);
       }
 
@@ -419,6 +433,7 @@ void Command::waitForEvents(QueueImplPtr Queue,
 /// should not outlive the event connected to it.
 Command::Command(CommandType Type, QueueImplPtr Queue)
     : MQueue(std::move(Queue)),
+      // HUGHTODO PROBLEM HERE
       MEvent(std::make_shared<detail::event_impl>(MQueue)),
       MPreparedDepsEvents(MEvent->getPreparedDepsEvents()),
       MPreparedHostDepsEvents(MEvent->getPreparedHostDepsEvents()),
@@ -616,13 +631,15 @@ Command *Command::processDepEvent(EventImplPtr DepEvent, const DepDesc &Dep,
   //    (e.g. alloca). Note that we can't check the pi event to make that
   //    distinction since the command might still be unenqueued at this point.
   bool PiEventExpected = (!DepEvent->is_host() && DepEvent->isInitialized()) ||
+                         DepEvent->hasNativeEvents() ||
                          getType() == CommandType::HOST_TASK;
   if (auto *DepCmd = static_cast<Command *>(DepEvent->getCommand()))
-    PiEventExpected &= DepCmd->producesPiEvent();
+    PiEventExpected &= DepCmd->producesPiEvent() || DepEvent->hasNativeEvents();
 
   if (!PiEventExpected) {
     // call to waitInternal() is in waitForPreparedHostEvents() as it's called
     // from enqueue process functions
+    std::cout << "Events.push_back: " << __FILE__ << __LINE__ << std::endl;
     MPreparedHostDepsEvents.push_back(DepEvent);
     return nullptr;
   }
@@ -632,11 +649,14 @@ Command *Command::processDepEvent(EventImplPtr DepEvent, const DepDesc &Dep,
   ContextImplPtr DepEventContext = DepEvent->getContextImpl();
   // If contexts don't match we'll connect them using host task
   if (DepEventContext != WorkerContext && !WorkerContext->is_host()) {
+    std::cout << "The contexts don't match so we are connecting these things "
+                 "with a host task!\n";
     Scheduler::GraphBuilder &GB = Scheduler::getInstance().MGraphBuilder;
     ConnectionCmd = GB.connectDepEvent(this, DepEvent, Dep, ToCleanUp);
-  } else
+  } else {
     MPreparedDepsEvents.push_back(std::move(DepEvent));
-
+    std::cout << "The contexts match so we are pushing back a DepEvent!\n";
+  }
   return ConnectionCmd;
 }
 
@@ -656,17 +676,19 @@ bool Command::supportsPostEnqueueCleanup() const { return true; }
 Command *Command::addDep(DepDesc NewDep, std::vector<Command *> &ToCleanUp) {
   Command *ConnectionCmd = nullptr;
 
+  std::cout << "Command::addDep\n";
+
   if (NewDep.MDepCommand) {
-    ConnectionCmd =
+    ConnectionCmd = // HT1
         processDepEvent(NewDep.MDepCommand->getEvent(), NewDep, ToCleanUp);
   }
   // ConnectionCmd insertion builds the following dependency structure:
   // this -> emptyCmd (for ConnectionCmd) -> ConnectionCmd -> NewDep
   // that means that this and NewDep are already dependent
   if (!ConnectionCmd) {
-    MDeps.push_back(NewDep);
+    MDeps.push_back(NewDep); // HT1
     if (NewDep.MDepCommand)
-      NewDep.MDepCommand->addUser(this);
+      NewDep.MDepCommand->addUser(this); // HT1
   }
 
 #ifdef XPTI_ENABLE_INSTRUMENTATION
@@ -2468,8 +2490,8 @@ pi_int32 ExecCGCommand::enqueueImp() {
     return PI_SUCCESS;
   }
   case CG::CGTYPE::CodeplayInteropTask: {
-    std::cout << "In CodeplayInteropTask " << __FILE__ << " : " << __LINE__
-              << std::endl;
+    std::cout << "In CodeplayInteropTask " << __FILE__ << __LINE__ << " : "
+              << __LINE__ << std::endl;
     const detail::plugin &Plugin = MQueue->getPlugin();
     CGInteropTask *ExecInterop = (CGInteropTask *)MCommandGroup.get();
     // Wait for dependencies to complete before dispatching work on the host
@@ -2478,8 +2500,8 @@ pi_int32 ExecCGCommand::enqueueImp() {
     //
     //  We don't want this wait to happen
     if (!RawEvents.empty()) {
-      std::cout << "We are waiting in " << __FILE__ << " : " << __LINE__
-                << std::endl;
+      std::cout << "We are waiting in " << __FILE__ << __LINE__ << " : "
+                << __LINE__ << std::endl;
       Plugin.call<PiApiKind::piEventsWait>(RawEvents.size(), &RawEvents[0]);
     }
     std::vector<interop_handler::ReqToMem> ReqMemObjs;
@@ -2503,8 +2525,8 @@ pi_int32 ExecCGCommand::enqueueImp() {
     return PI_SUCCESS;
   }
   case CG::CGTYPE::CodeplayHostTask: {
-    std::cout << "In CodeplayHostTask " << __FILE__ << " : " << __LINE__
-              << std::endl;
+    std::cout << "In CodeplayHostTask " << __FILE__ << __LINE__ << " : "
+              << __LINE__ << std::endl;
     CGHostTask *HostTask = static_cast<CGHostTask *>(MCommandGroup.get());
 
     for (ArgDesc &Arg : HostTask->MArgs) {
@@ -2552,8 +2574,20 @@ pi_int32 ExecCGCommand::enqueueImp() {
       std::sort(std::begin(ReqToMem), std::end(ReqToMem));
     }
 
-    MQueue->getThreadPool().submit<DispatchHostTask>(
-        DispatchHostTask(this, std::move(ReqToMem)));
+    std::cout << "setHasNativeEvents(" << HostTask->MHostTask->hasNativeEvents()
+              << ");\n";
+    this->MEvent->setHasNativeEvents(HostTask->MHostTask->hasNativeEvents());
+
+    if (HostTask->MHostTask
+            ->hasProperty<property::host_task::exec_on_submit>()) {
+      std::cout << "Waiting on submit operation to complete\n";
+      MQueue->getThreadPool().submit_and_wait<DispatchHostTask>(
+          DispatchHostTask(this, std::move(ReqToMem)));
+
+    } else {
+      MQueue->getThreadPool().submit<DispatchHostTask>(
+          DispatchHostTask(this, std::move(ReqToMem)));
+    }
 
     MShouldCompleteEventIfPossible = false;
 

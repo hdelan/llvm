@@ -86,12 +86,14 @@ void handler::setHandlerKernelBundle(kernel Kernel) {
   setHandlerKernelBundle(KernelBundleImpl);
 }
 
+// HUGHTODO this is where I need to work
 event handler::finalize() {
   // This block of code is needed only for reduction implementation.
   // It is harmless (does nothing) for everything else.
   if (MIsFinalized)
     return MLastEvent;
   MIsFinalized = true;
+  std::cout << "MIsNotFinalized\n";
 
   const auto &type = getType();
   if (type == detail::CG::Kernel) {
@@ -100,8 +102,10 @@ event handler::finalize() {
         getOrInsertHandlerKernelBundle(/*Insert=*/false);
     if (KernelBundleImpPtr) {
       // Make sure implicit non-interop kernel bundles have the kernel
+      std::cout << "KernelBundleImplPtr\n";
       if (!KernelBundleImpPtr->isInterop() &&
           !MImpl->isStateExplicitKernelBundle()) {
+        std::cout << "!KernelBundleImplPtr->IsInterop\n";
         kernel_id KernelID =
             detail::ProgramManager::getInstance().getSYCLKernelID(MKernelName);
         bool KernelInserted =
@@ -151,6 +155,7 @@ event handler::finalize() {
       // the graph is not changed, then this faster path is used to submit
       // kernel bypassing scheduler and avoiding CommandGroup, Command objects
       // creation.
+      std::cout << __LINE__ << "\n";
 
       std::vector<RT::PiEvent> RawEvents;
       detail::EventImplPtr NewEvent;
@@ -185,6 +190,7 @@ event handler::finalize() {
 
       bool DiscardEvent = false;
       if (MQueue->has_discard_events_support()) {
+      std::cout << __LINE__ << "\n";
         // Kernel only uses assert if it's non interop one
         bool KernelUsesAssert =
             !(MKernel && MKernel->isInterop()) &&
@@ -194,10 +200,12 @@ event handler::finalize() {
       }
 
       if (DiscardEvent) {
+      std::cout << __LINE__ << "\n";
         if (PI_SUCCESS != EnqueueKernel())
           throw runtime_error("Enqueue process failed.",
                               PI_ERROR_INVALID_OPERATION);
       } else {
+      std::cout << __LINE__ << "\n";
         NewEvent = std::make_shared<detail::event_impl>(MQueue);
         NewEvent->setContextImpl(MQueue->getContextImplPtr());
         NewEvent->setStateIncomplete();
@@ -232,6 +240,7 @@ event handler::finalize() {
     break;
   }
   case detail::CG::CodeplayInteropTask:
+      std::cout << __LINE__ << "\n";
     CommandGroup.reset(new detail::CGInteropTask(
         std::move(MInteropTask), std::move(MArgsStorage),
         std::move(MAccStorage), std::move(MSharedPtrStorage),
@@ -688,6 +697,7 @@ void handler::depends_on(event Event) {
                           "Queue operation cannot depend on discarded event.");
   }
   MEvents.push_back(EventImpl);
+      std::cout << "Events.push_back: " << __FILE__ << std::endl;
 }
 
 void handler::depends_on(const std::vector<event> &Events) {
@@ -698,6 +708,7 @@ void handler::depends_on(const std::vector<event> &Events) {
           make_error_code(errc::invalid),
           "Queue operation cannot depend on discarded event.");
     }
+      std::cout << "Events.push_back: " << __FILE__ << std::endl;
     MEvents.push_back(EventImpl);
   }
 }

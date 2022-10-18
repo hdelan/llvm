@@ -209,6 +209,7 @@ void queue_impl::addEvent(const event &Event) {
     std::weak_ptr<event_impl> EventWeakPtr{EImpl};
     std::lock_guard<std::mutex> Lock{MMutex};
     MEventsWeak.push_back(std::move(EventWeakPtr));
+      std::cout << "Events.push_back: " << __FILE__ << __LINE__ << std::endl;
   }
 }
 
@@ -241,6 +242,7 @@ void queue_impl::addSharedEvent(const event &Event) {
                      info::event_command_status::complete;
             }));
   }
+      std::cout << "Events.push_back: " << __FILE__ << __LINE__<< std::endl;
   MEventsShared.push_back(Event);
 }
 

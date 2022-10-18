@@ -1300,6 +1300,24 @@ private:
 
     setType(detail::CG::CodeplayHostTask);
   }
+  
+  template <typename FuncT, backend Backend = backend::opencl>
+  detail::enable_if_t<detail::check_fn_signature<
+      detail::remove_reference_t<FuncT>,
+      backend_return_t<Backend, event>(interop_handle)>::value>
+  host_task_impl(FuncT &&Func, const property_list &PropList) {
+    throwIfActionIsCreated();
+
+    std::cout << "Calling this special one!\n";
+
+    MNDRDesc.set(range<1>(1));
+    MArgs = std::move(MAssociatedAccesors);
+
+    MHostTask.reset(new detail::NativeEventsHostTask<Backend>(
+        std::move(Func), std::make_shared<property_list>(PropList)));
+
+    setType(detail::CG::CodeplayHostTask);
+  }
 
 public:
   handler(const handler &) = delete;
@@ -1496,7 +1514,7 @@ public:
   }
 
   /// Enqueues a command to the SYCL runtime to invoke \p Func once.
-  template <typename FuncT>
+  template <typename FuncT, backend Backend = backend::opencl>
   detail::enable_if_t<
       detail::check_fn_signature<detail::remove_reference_t<FuncT>,
                                  void()>::value ||
@@ -1506,6 +1524,13 @@ public:
     host_task_impl(Func, PropList);
   }
 
+  template <typename FuncT, backend Backend = backend::opencl>
+  detail::enable_if_t<detail::check_fn_signature<
+      detail::remove_reference_t<FuncT>,
+      backend_return_t<Backend, event>(interop_handle)>::value>
+  host_task(FuncT &&Func, const property_list &PropList = {}) {
+    host_task_impl(Func, PropList);
+  }
 // replace _KERNELFUNCPARAM(KernelFunc) with   KernelType KernelFunc
 //                                     or     const KernelType &KernelFunc
 #ifdef __SYCL_NONCONST_FUNCTOR__

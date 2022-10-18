@@ -445,4 +445,18 @@ void event_impl::cleanDepEventsThroughOneLevel() {
 
 } // namespace detail
 } // __SYCL_INLINE_VER_NAMESPACE(_V1)
+__SYCL_EXPORT bool
+detail::hasNativeInteropEvents(std::shared_ptr<detail::event_impl> EPtr) {
+  std::cout << "hasNativeInteropEvents: " << EPtr->hasNativeEvents() << std::endl;
+  return EPtr->hasNativeEvents();
+}
+__SYCL_EXPORT void
+detail::waitOnNativeInteropEvents(std::shared_ptr<detail::event_impl> EPtr) {
+  return EPtr->waitOnNativeInteropEvents();
+}
+
+template __SYCL_EXPORT backend_return_t<backend::opencl, event>
+    detail::getNativeInteropEvents<backend::opencl>(
+        std::shared_ptr<event_impl>);
+
 } // namespace sycl

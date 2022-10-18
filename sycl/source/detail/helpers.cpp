@@ -34,6 +34,7 @@ std::vector<RT::PiEvent> getOrWaitEvents(std::vector<sycl::event> DepEvents,
         SyclEventImplPtr->getContextImpl() != Context) {
       SyclEventImplPtr->waitInternal();
     } else {
+      std::cout << "Events.push_back: " << __FILE__ << std::endl;
       Events.push_back(SyclEventImplPtr->getHandleRef());
     }
   }

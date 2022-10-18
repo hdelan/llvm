@@ -375,11 +375,14 @@ public:
            std::move(Events), std::move(loc)),
         MHostTask(std::move(HostTask)), MQueue(Queue), MContext(Context),
         MArgs(std::move(Args)) {
-    std::cout
-        << "CGHostTask(...) with HostTask has property: "
-        << MHostTask->MPropertyList
-               ->has_property<sycl::property::host_task::manual_interop_sync>()
-        << std::endl;
+    if (MHostTask) {
+      std::cout << "CGHostTask(...) with HostTask has property: " << std::flush;
+      std::cout << MHostTask->hasProperty<
+                       sycl::property::host_task::manual_interop_sync>()
+                << std::endl;
+      std::cout << "MHostTask->has_native_events(): "
+                << MHostTask->hasNativeEvents() << std::endl;
+    }
   }
 };
 
