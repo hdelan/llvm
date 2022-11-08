@@ -239,29 +239,7 @@ static pi_result redefinedEventsWaitNegative(pi_uint32 num_events,
   return PI_SUCCESS;
 }
 
-/*
-<<<<<<< HEAD
-static pi_result
-redefinedMemBufferCreate(pi_context context, pi_device, pi_mem_flags flags,
-                         size_t size, void *host_ptr, pi_mem *ret_mem,
-                         const pi_mem_properties *properties = nullptr) {
-  static size_t MemAddrCounter = 1;
-  *ret_mem = (pi_mem)MemAddrCounter++;
-  return PI_SUCCESS;
-}
-
-static pi_result redefinedMemRelease(pi_mem mem) { return PI_SUCCESS; }
-
-static pi_result redefinedKernelSetArg(pi_kernel kernel, pi_uint32 arg_index,
-                                       size_t arg_size, const void *arg_value) {
-  return PI_SUCCESS;
-}
-
-static pi_result redefinedEnqueueMemBufferMap(
-=======
-*/
 static pi_result redefinedEnqueueMemBufferMapAfter(
-//>>>>>>> sycl
     pi_queue command_queue, pi_mem buffer, pi_bool blocking_map,
     pi_map_flags map_flags, size_t offset, size_t size,
     pi_uint32 num_events_in_wait_list, const pi_event *event_wait_list,

@@ -29,15 +29,6 @@ static pi_result redefinedDeviceGetInfoAfter(pi_device Device,
     auto *Result = reinterpret_cast<_pi_device_type *>(ParamValue);
     *Result = PI_DEVICE_TYPE_CPU;
   }
-/*
-<<<<<<< HEAD
-static pi_result
-redefinedMemBufferCreate(pi_context context, pi_device, pi_mem_flags flags,
-                         size_t size, void *host_ptr, pi_mem *ret_mem,
-                         const pi_mem_properties *properties = nullptr) {
-  *ret_mem = nullptr;
-=======
-*/
   // This mock device has no sub-devices
   if (ParamName == PI_DEVICE_INFO_PARTITION_PROPERTIES) {
     if (ParamValueSizeRet) {
@@ -50,7 +41,6 @@ redefinedMemBufferCreate(pi_context context, pi_device, pi_mem_flags flags,
       *static_cast<pi_device_affinity_domain *>(ParamValue) = 0;
     }
   }
-//>>>>>>> sycl
   return PI_SUCCESS;
 }
 
