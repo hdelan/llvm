@@ -792,10 +792,11 @@ pi_result piDeviceGetInfo(pi_device Device, pi_device_info ParamName,
   case PI_DEVICE_INFO_REFERENCE_COUNT:
     // TODO : CHECK
     return ReturnValue(pi_uint32{0});
+  case PI_DEVICE_INFO_SUB_GROUP_SIZES_INTEL:
+    return ReturnValue(size_t{1});
 
     CASE_PI_UNSUPPORTED(PI_DEVICE_INFO_MAX_NUM_SUB_GROUPS)
     CASE_PI_UNSUPPORTED(PI_DEVICE_INFO_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS)
-    CASE_PI_UNSUPPORTED(PI_DEVICE_INFO_SUB_GROUP_SIZES_INTEL)
     CASE_PI_UNSUPPORTED(PI_DEVICE_INFO_IL_VERSION)
 
     // Intel-specific extensions
@@ -941,7 +942,7 @@ pi_result piQueueCreate(pi_context Context, pi_device Device,
     return PI_ERROR_INVALID_QUEUE_PROPERTIES;
   }
 
-  cm_support::CmQueue *CmQueue;
+  cm_support::CmQueue *CmQueue = nullptr;
 
   int Result = Context->Device->CmDevicePtr->CreateQueue(CmQueue);
   if (Result != cm_support::CM_SUCCESS) {
@@ -1034,7 +1035,7 @@ pi_result piMemBufferCreate(pi_context Context, pi_device Device,
 
   char *MapBasePtr = nullptr;
   cm_surface_ptr_t CmBuf;
-  cm_support::SurfaceIndex *CmIndex;
+  cm_support::SurfaceIndex *CmIndex = nullptr;
   int Status = cm_support::CM_FAILURE;
 
   if (Flags & PI_MEM_FLAGS_HOST_PTR_USE) {
@@ -1228,7 +1229,7 @@ pi_result piMemImageCreate(pi_context Context, pi_device Device,
 
   char *MapBasePtr = nullptr;
   cm_surface_ptr_t CmImg;
-  cm_support::SurfaceIndex *CmIndex;
+  cm_support::SurfaceIndex *CmIndex = nullptr;
   int Status = cm_support::CM_SUCCESS;
 
   if (Flags & PI_MEM_FLAGS_HOST_PTR_USE) {
