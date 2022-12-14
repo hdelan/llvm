@@ -70,6 +70,7 @@ piProgramLink
 piProgramRelease
 piProgramRetain
 piQueueCreate
+piextQueueCreate
 piQueueFinish
 piQueueFlush
 piQueueGetInfo
@@ -111,6 +112,9 @@ piextUSMEnqueueMemAdvise
 piextUSMEnqueueMemcpy
 piextUSMEnqueueMemset
 piextUSMEnqueuePrefetch
+piextUSMEnqueueFill2D
+piextUSMEnqueueMemset2D
+piextUSMEnqueueMemcpy2D
 piextUSMFree
 piextUSMGetMemAllocInfo
 piextUSMHostAlloc

@@ -69,66 +69,70 @@ _CLC_OVERLOAD _CLC_DECL void __spirv_MemoryBarrier(unsigned int, unsigned int);
   }                                                                            \
   }
 
-#define __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                             \
-    FN_MANGLED, TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, ADDR_SPACE,                                                                                   \
-    ADDR_SPACE_NV)                                                                                                                          \
-  __attribute__((always_inline)) _CLC_DECL TYPE                                                                                                                 \
-      FN_MANGLED( \
-          volatile ADDR_SPACE TYPE *pointer, enum Scope scope,                                                                                                  \
-          enum MemorySemanticsMask semantics1,                                                                                                                  \
-          enum MemorySemanticsMask semantics2, TYPE cmp, TYPE value) {                                                                                          \
-    /* Semantics mask may include memory order, storage class and other info                                                                                    \
-Memory order is stored in the lowest 5 bits */                                                                                                                  \
-    unsigned int order = (semantics1 | semantics2) & 0x1F;                                                                                                      \
-    switch (order) {                                                                                                                                            \
-    case None:                                                                                                                                                  \
-      __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,                                                                                      \
-                                       ADDR_SPACE, ADDR_SPACE_NV, )                                                                                             \
-    case Acquire:                                                                                                                                               \
-      if (__clc_nvvm_reflect_arch() >= 700) {                                                                                                                   \
-        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,                                                                                    \
-                                         ADDR_SPACE, ADDR_SPACE_NV, _acquire)                                                                                   \
-      } else {                                                                                                                                                  \
-        __CLC_NVVM_ATOMIC_CAS_IMPL_ACQUIRE_FENCE(                                                                                                               \
-            TYPE, TYPE_NV, TYPE_MANGLED_NV, OP, ADDR_SPACE, ADDR_SPACE_NV)                                                                                      \
-      }                                                                                                                                                         \
-      break;                                                                                                                                                    \
-    case Release:                                                                                                                                               \
-      if (__clc_nvvm_reflect_arch() >= 700) {                                                                                                                   \
-        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,                                                                                    \
-                                         ADDR_SPACE, ADDR_SPACE_NV, _release)                                                                                   \
-      } else {                                                                                                                                                  \
-        __spirv_MemoryBarrier(scope, Release);                                                                                                                  \
-        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,                                                                                    \
-                                         ADDR_SPACE, ADDR_SPACE_NV, )                                                                                           \
-      }                                                                                                                                                         \
-      break;                                                                                                                                                    \
-    case AcquireRelease:                                                                                                                                        \
-      if (__clc_nvvm_reflect_arch() >= 700) {                                                                                                                   \
-        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,                                                                                    \
-                                         ADDR_SPACE, ADDR_SPACE_NV, _acq_rel)                                                                                   \
-      } else {                                                                                                                                                  \
-        __spirv_MemoryBarrier(scope, Release);                                                                                                                  \
-        __CLC_NVVM_ATOMIC_CAS_IMPL_ACQUIRE_FENCE(                                                                                                               \
-            TYPE, TYPE_NV, TYPE_MANGLED_NV, OP, ADDR_SPACE, ADDR_SPACE_NV)                                                                                      \
-      }                                                                                                                                                         \
-      break;                                                                                                                                                    \
-    }                                                                                                                                                           \
-    __builtin_trap();                                                                                                                                           \
-    __builtin_unreachable();                                                                                                                                    \
+// Type __spirv_AtomicCompareExchange(AS Type *P, __spv::Scope::Flag S,
+//                                    __spv::MemorySemanticsMask::Flag E,
+//                                    __spv::MemorySemanticsMask::Flag U,
+//                                    Type V, Type C);
+#define __CLC_NVVM_ATOMIC_CAS_IMPL(TYPE, TYPE_MANGLED, TYPE_NV,                \
+                                   TYPE_MANGLED_NV, OP, OP_MANGLED,            \
+                                   ADDR_SPACE, POINTER_AND_ADDR_SPACE_MANGLED, \
+                                   ADDR_SPACE_NV, SUBSTITUTION1, SUBSTITUTION2) \
+  __attribute__((always_inline)) _CLC_DECL TYPE _Z29__spirv_\
+Atomic##OP_MANGLED##POINTER_AND_ADDR_SPACE_MANGLED##TYPE_MANGLED##N5\
+__spv5Scope4FlagENS##SUBSTITUTION1##_19Memory\
+SemanticsMask4FlagES##SUBSTITUTION2##_##TYPE_MANGLED##TYPE_MANGLED(            \
+      volatile ADDR_SPACE TYPE *pointer, enum Scope scope,                     \
+      enum MemorySemanticsMask semantics1,                                     \
+      enum MemorySemanticsMask semantics2, TYPE cmp, TYPE value) {             \
+    /* Semantics mask may include memory order, storage class and other info   \
+Memory order is stored in the lowest 5 bits */                                 \
+    unsigned int order = (semantics1 | semantics2) & 0x1F;                     \
+    switch (order) {                                                           \
+    case None:                                                                 \
+      __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,     \
+                                       ADDR_SPACE, ADDR_SPACE_NV, )            \
+    case Acquire:                                                              \
+      if (__clc_nvvm_reflect_arch() >= 700) {                                  \
+        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,   \
+                                         ADDR_SPACE, ADDR_SPACE_NV, _acquire)  \
+      } else {                                                                 \
+        __CLC_NVVM_ATOMIC_CAS_IMPL_ACQUIRE_FENCE(                              \
+            TYPE, TYPE_NV, TYPE_MANGLED_NV, OP, ADDR_SPACE, ADDR_SPACE_NV)     \
+      }                                                                        \
+      break;                                                                   \
+    case Release:                                                              \
+      if (__clc_nvvm_reflect_arch() >= 700) {                                  \
+        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,   \
+                                         ADDR_SPACE, ADDR_SPACE_NV, _release)  \
+      } else {                                                                 \
+        __spirv_MemoryBarrier(scope, Release);                                 \
+        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,   \
+                                         ADDR_SPACE, ADDR_SPACE_NV, )          \
+      }                                                                        \
+      break;                                                                   \
+    case AcquireRelease:                                                       \
+      if (__clc_nvvm_reflect_arch() >= 700) {                                  \
+        __CLC_NVVM_ATOMIC_CAS_IMPL_ORDER(TYPE, TYPE_NV, TYPE_MANGLED_NV, OP,   \
+                                         ADDR_SPACE, ADDR_SPACE_NV, _acq_rel)  \
+      } else {                                                                 \
+        __spirv_MemoryBarrier(scope, Release);                                 \
+        __CLC_NVVM_ATOMIC_CAS_IMPL_ACQUIRE_FENCE(                              \
+            TYPE, TYPE_NV, TYPE_MANGLED_NV, OP, ADDR_SPACE, ADDR_SPACE_NV)     \
+      }                                                                        \
+      break;                                                                   \
+    }                                                                          \
+    __builtin_trap();                                                          \
+    __builtin_unreachable();                                                   \
   }
 
-#define __CLC_NVVM_ATOMIC_CAS(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV,                                                                       \
-                              OP)                                                                                                                 \
-  __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                     \
-      _Z29__spirv_AtomicCompareExchange##P##TYPE_MANGLED##N5__spv5Scope4FlagENS0_19MemorySemanticsMask4FlagES4_##TYPE_MANGLED##TYPE_MANGLED,      \
-      TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, , _gen_)                                                                                  \
-  __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                     \
-      _Z29__spirv_AtomicCompareExchange##PU3AS1##TYPE_MANGLED##N5__spv5Scope4FlagENS1_19MemorySemanticsMask4FlagES5_##TYPE_MANGLED##TYPE_MANGLED, \
-      TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, __global, _global_)                                                                       \
-  __CLC_NVVM_ATOMIC_CAS_IMPL(                                                                                                                     \
-      _Z29__spirv_AtomicCompareExchange##PU3AS3##TYPE_MANGLED##N5__spv5Scope4FlagENS1_19MemorySemanticsMask4FlagES5_##TYPE_MANGLED##TYPE_MANGLED, \
-      TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, __local, _shared_)
+#define __CLC_NVVM_ATOMIC_CAS(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV,    \
+                              OP, OP_MANGLED)                                  \
+  __CLC_NVVM_ATOMIC_CAS_IMPL(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, \
+                             OP_MANGLED, __global, PU3AS1, _global_, 1, 5)     \
+  __CLC_NVVM_ATOMIC_CAS_IMPL(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, \
+                             OP_MANGLED, __local, PU3AS3, _shared_, 1, 5)      \
+  __CLC_NVVM_ATOMIC_CAS_IMPL(TYPE, TYPE_MANGLED, TYPE_NV, TYPE_MANGLED_NV, OP, \
+                             OP_MANGLED, , P, _gen_, 0, 4)
 
 __CLC_NVVM_ATOMIC_CAS(int, i, int, i, cas)
 __CLC_NVVM_ATOMIC_CAS(long, l, long, l, cas)
