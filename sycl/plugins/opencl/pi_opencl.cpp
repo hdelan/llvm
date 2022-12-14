@@ -851,8 +851,9 @@ pi_result piContextGetInfo(pi_context context, pi_context_info paramName,
   }
 }
 
-pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags, size_t size,
-                            void *host_ptr, pi_mem *ret_mem,
+pi_result piMemBufferCreate(pi_context context, pi_device device,
+                            pi_mem_flags flags, size_t size, void *host_ptr,
+                            pi_mem *ret_mem,
                             const pi_mem_properties *properties) {
   (void)device;
   pi_result ret_err = PI_ERROR_INVALID_OPERATION;
