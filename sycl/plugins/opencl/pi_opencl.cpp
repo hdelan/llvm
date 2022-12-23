@@ -1677,7 +1677,8 @@ typedef CL_API_ENTRY cl_int(CL_API_CALL *clSetProgramSpecializationConstant_fn)(
 pi_result piextProgramSetSpecializationConstant(pi_program prog,
                                                 pi_uint32 spec_id,
                                                 size_t spec_size,
-                                                const void *spec_value) {
+                                                const void *spec_value,
+                                                pi_kernel) {
   cl_program ClProg = cast<cl_program>(prog);
   cl_context Ctx = nullptr;
   size_t RetSize = 0;

@@ -77,9 +77,10 @@
 // 12.22 Add piGetDeviceAndHostTimer to query device wall-clock timestamp
 // 12.23 Added new piextEnqueueDeviceGlobalVariableWrite and
 // piextEnqueueDeviceGlobalVariableRead functions.
+// 13.24 Added a new argument to piextProgramSetSpecializationConstant.
 
-#define _PI_H_VERSION_MAJOR 12
-#define _PI_H_VERSION_MINOR 23
+#define _PI_H_VERSION_MAJOR 13
+#define _PI_H_VERSION_MINOR 24
 
 #define _PI_STRING_HELPER(a) #a
 #define _PI_CONCAT(a, b) _PI_STRING_HELPER(a.b)
@@ -1325,9 +1326,11 @@ __SYCL_EXPORT pi_result piProgramRelease(pi_program program);
 /// \param spec_id integer ID of the constant
 /// \param spec_size size of the value
 /// \param spec_value bytes of the value
-__SYCL_EXPORT pi_result
-piextProgramSetSpecializationConstant(pi_program prog, pi_uint32 spec_id,
-                                      size_t spec_size, const void *spec_value);
+/// \param kernel is the pi_kernel to which an implicit argument for emulated
+/// specialisation constant would be added
+__SYCL_EXPORT pi_result piextProgramSetSpecializationConstant(
+    pi_program prog, pi_uint32 spec_id, size_t spec_size,
+    const void *spec_value, pi_kernel kernel);
 
 /// Gets the native handle of a PI program object.
 ///

@@ -555,7 +555,7 @@ void program_impl::flush_spec_constants(const RTDeviceBinaryImage &Img,
           Descriptors.consume<uint32_t, uint32_t, uint32_t>();
 
       Ctx->getPlugin().call<PiApiKind::piextProgramSetSpecializationConstant>(
-          NativePrg, Id, Size, SC.getValuePtr() + Offset);
+          NativePrg, Id, Size, SC.getValuePtr() + Offset, nullptr);
     }
   }
 }

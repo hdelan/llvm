@@ -58,7 +58,7 @@ static void enableITTAnnotationsIfNeeded(const RT::PiProgram &Prog,
   if (SYCLConfig<INTEL_ENABLE_OFFLOAD_ANNOTATIONS>::get() != nullptr) {
     constexpr char SpecValue = 1;
     Plugin.call<PiApiKind::piextProgramSetSpecializationConstant>(
-        Prog, ITTSpecConstId, sizeof(char), &SpecValue);
+        Prog, ITTSpecConstId, sizeof(char), &SpecValue, nullptr);
   }
 }
 
@@ -1864,7 +1864,7 @@ setSpecializationConstants(const std::shared_ptr<device_image_impl> &InputImpl,
       if (SpecIDDesc.IsSet) {
         Plugin.call<PiApiKind::piextProgramSetSpecializationConstant>(
             Prog, SpecIDDesc.ID, SpecIDDesc.Size,
-            SpecConsts.data() + SpecIDDesc.BlobOffset);
+            SpecConsts.data() + SpecIDDesc.BlobOffset, nullptr);
       }
     }
   }

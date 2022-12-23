@@ -13,6 +13,7 @@
 // - specialization constant intrinsic transformation
 //===----------------------------------------------------------------------===//
 
+#include "CUDASpecConstantToSymbol.h"
 #include "ModuleSplitter.h"
 #include "SYCLDeviceLibReqMask.h"
 #include "SYCLDeviceRequirements.h"
@@ -640,6 +641,23 @@ bool processSpecConstants(module_split::ModuleDesc &MD) {
   return MD.Props.SpecConstsMet;
 }
 
+bool processCUDASpecConstants(module_split::ModuleDesc &MD) {
+  auto &M = MD.getModule();
+  if (M.getTargetTriple().find("nvptx") == std::string::npos)
+    return false;
+  if (SpecConstLower.getNumOccurrences() == 0)
+    return false;
+
+  ModuleAnalysisManager MAM;
+  ModulePassManager MPM;
+  CUDASpecConstantToSymbolPass CSCTS;
+  MAM.registerPass([&] { return PassInstrumentationAnalysis(); });
+  MPM.addPass(std::move(CSCTS));
+
+  PreservedAnalyses Res = MPM.run(M, MAM);
+  return !Res.areAllPreserved();
+}
+
 constexpr int MAX_COLUMNS_IN_FILE_TABLE = 3;
 
 void addTableRow(util::SimpleTable &Table,
@@ -844,6 +862,14 @@ processInputModule(std::unique_ptr<Module> M) {
       module_split::ModuleDesc MDesc2 = ESIMDSplitter->nextSplit();
       DUMP_ENTRY_POINTS(MDesc2.entries(), MDesc2.Name.c_str(), 3);
       Modified |= processSpecConstants(MDesc2);
+      // CUDA spec const pass modifies kernels, save/restore entry points.
+      std::vector<std::string> Names;
+      MDesc2.saveEntryPointNames(Names);
+      auto ModifiedCUDASpecConst = processCUDASpecConstants(MDesc2);
+      if (ModifiedCUDASpecConst) {
+        Modified |= ModifiedCUDASpecConst;
+        MDesc2.rebuildEntryPoints(Names);
+      }
 
       if (!MDesc2.isSYCL() && LowerEsimd) {
         assert(MDesc2.isESIMD() && "NYI");

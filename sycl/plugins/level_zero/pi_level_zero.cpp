@@ -9014,7 +9014,8 @@ pi_result piKernelSetExecInfo(pi_kernel Kernel, pi_kernel_exec_info ParamName,
 
 pi_result piextProgramSetSpecializationConstant(pi_program Prog,
                                                 pi_uint32 SpecID, size_t,
-                                                const void *SpecValue) {
+                                                const void *SpecValue,
+                                                pi_kernel) {
   std::scoped_lock<pi_shared_mutex> Guard(Prog->Mutex);
 
   // Remember the value of this specialization constant until the program is

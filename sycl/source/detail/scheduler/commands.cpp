@@ -2023,6 +2023,15 @@ static pi_result SetKernelParamsAndLaunch(
       // Avoid taking an address of nullptr
       RT::PiMem *SpecConstsBufferArg =
           SpecConstsBuffer ? &SpecConstsBuffer : nullptr;
+      // Call into set spec constant for pi cuda kernels.
+      if (Queue->getPlugin().getBackend() == backend::ext_oneapi_cuda) {
+        static unsigned SpecID = 0;
+        auto &Blob = DeviceImageImpl->get_spec_const_blob_ref();
+        Plugin.call<PiApiKind::piextProgramSetSpecializationConstant>(
+            DeviceImageImpl->get_program_ref(), SpecID++, Blob.size(),
+            Blob.data(), Kernel);
+      }
+
       Plugin.call<PiApiKind::piextKernelSetArgMemObj>(Kernel, NextTrueIndex,
                                                       SpecConstsBufferArg);
       break;
