@@ -2091,9 +2091,11 @@ pi_result hip_piextContextCreateWithNativeHandle(pi_native_handle nativeHandle,
 /// Can trigger a manual copy depending on the mode.
 /// \TODO Implement USE_HOST_PTR using cuHostRegister
 ///
-pi_result hip_piMemBufferCreate(pi_context context, pi_mem_flags flags,
-                                size_t size, void *host_ptr, pi_mem *ret_mem,
+pi_result hip_piMemBufferCreate(pi_context context, pi_device device,
+                                pi_mem_flags flags, size_t size, void *host_ptr,
+                                pi_mem *ret_mem,
                                 const pi_mem_properties *properties) {
+  (void)device;
   // Need input memory object
   assert(ret_mem != nullptr);
   assert((properties == nullptr || *properties == 0) &&
@@ -2991,10 +2993,12 @@ hip_piEnqueueNativeKernel(pi_queue queue, void (*user_func)(void *), void *args,
 
 /// \TODO Not implemented
 
-pi_result hip_piMemImageCreate(pi_context context, pi_mem_flags flags,
+pi_result hip_piMemImageCreate(pi_context context, pi_device device,
+                               pi_mem_flags flags,
                                const pi_image_format *image_format,
                                const pi_image_desc *image_desc, void *host_ptr,
                                pi_mem *ret_mem) {
+  (void)device;
 
   // Need input memory object
   assert(ret_mem != nullptr);
@@ -5221,6 +5225,17 @@ pi_result hip_piextUSMGetMemAllocInfo(pi_context context, const void *ptr,
   return result;
 }
 
+__SYCL_EXPORT pi_result hip_piextGetMemoryConnection(
+    pi_device device1, pi_context context1, pi_device device2,
+    pi_context context2, _pi_memory_connection *res) {
+  (void)device1;
+  (void)context1;
+  (void)device2;
+  (void)context2;
+  *res = PI_MEMORY_CONNECTION_MIGRATABLE;
+  return PI_SUCCESS;
+}
+
 // This API is called by Sycl RT to notify the end of the plugin lifetime.
 // TODO: add a global variable lifetime management code here (see
 // pi_level_zero.cpp for reference) Currently this is just a NOOP.
@@ -5367,6 +5382,7 @@ pi_result piPluginInit(pi_plugin *PluginInit) {
   _PI_CL(piextUSMEnqueueMemset2D, hip_piextUSMEnqueueMemset2D)
   _PI_CL(piextUSMGetMemAllocInfo, hip_piextUSMGetMemAllocInfo)
 
+  _PI_CL(piextGetMemoryConnection, hip_piextGetMemoryConnection)
   _PI_CL(piextKernelSetArgMemObj, hip_piextKernelSetArgMemObj)
   _PI_CL(piextKernelSetArgSampler, hip_piextKernelSetArgSampler)
   _PI_CL(piPluginGetLastError, hip_piPluginGetLastError)
