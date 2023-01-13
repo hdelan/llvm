@@ -614,6 +614,7 @@ static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__hip_atomic_fetch_add:
   case AtomicExpr::AO__opencl_atomic_fetch_add:
   case AtomicExpr::AO__atomic_fetch_add:
+    printf("I'm in here!\n");
     Op = E->getValueType()->isFloatingType() ? llvm::AtomicRMWInst::FAdd
                                              : llvm::AtomicRMWInst::Add;
     break;
