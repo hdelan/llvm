@@ -303,7 +303,7 @@ void guessLocalWorkSize(_pi_device *device, size_t *threadsPerBlock,
   threadsPerBlock[2] = ((global_work_size[2] - 1) / gridDim[2]) + 1;
 
   PI_CHECK_ERROR(cuOccupancyMaxPotentialBlockSize(
-      &minGrid, &maxBlockSize, kernel->get(), NULL, local_size,
+      &minGrid, &maxBlockSize, kernel->get()[0], NULL, local_size,
       maxThreadsPerBlock[0]));
 
   gridDim[0] = maxBlockSize / (threadsPerBlock[1] * threadsPerBlock[2]);
@@ -3909,7 +3909,7 @@ pi_result cuda_piextProgramSetSpecializationConstant(pi_program Prog,
   std::string Name{GlobalNamePrefix};
   Name.append(Kernel->get_name());
   const auto ResGetGlobal =
-      cuModuleGetGlobal(&DPtr, &Bytes, Prog->get(), Name.c_str());
+      cuModuleGetGlobal(&DPtr, &Bytes, Prog->get()[0], Name.c_str());
   PI_CHECK_ERROR(ResGetGlobal);
   // NOTE: The size of the symbol here - 1 - is important (the value is invalid
   // and would result in a failure from `cuMemcpyHtoD`), instead, it's used as
@@ -5487,7 +5487,7 @@ pi_result cuda_piextUSMEnqueueMemcpy2D(pi_queue queue, pi_bool blocking,
   pi_result result = PI_SUCCESS;
 
   try {
-    ScopedContext active(queue->get_context());
+    ScopedContext active(queue->get_native_context());
     CUstream cuStream = queue->get_next_transfer_stream();
     result = enqueueEventsWait(queue, cuStream, num_events_in_wait_list,
                                event_wait_list);
@@ -5661,7 +5661,6 @@ pi_result cuda_piextUSMGetMemAllocInfo(pi_context context, const void *ptr,
   return result;
 }
 
-<<<<<<< HEAD
 pi_result cuda_piextEnqueueDeviceGlobalVariableWrite(
     pi_queue queue, pi_program program, const char *name,
     pi_bool blocking_write, size_t count, size_t offset, const void *src,
@@ -5685,8 +5684,8 @@ pi_result cuda_piextEnqueueDeviceGlobalVariableWrite(
     CUdeviceptr device_global = 0;
     size_t device_global_size = 0;
     result = PI_CHECK_ERROR(
-        cuModuleGetGlobal(&device_global, &device_global_size, program->get(),
-                          device_global_name.c_str()));
+        cuModuleGetGlobal(&device_global, &device_global_size,
+                          program->get()[0], device_global_name.c_str()));
 
     if (offset + count > device_global_size)
       return PI_ERROR_INVALID_VALUE;
@@ -5722,8 +5721,8 @@ pi_result cuda_piextEnqueueDeviceGlobalVariableRead(
     CUdeviceptr device_global = 0;
     size_t device_global_size = 0;
     result = PI_CHECK_ERROR(
-        cuModuleGetGlobal(&device_global, &device_global_size, program->get(),
-                          device_global_name.c_str()));
+        cuModuleGetGlobal(&device_global, &device_global_size,
+                          program->get()[0], device_global_name.c_str()));
 
     if (offset + count > device_global_size)
       return PI_ERROR_INVALID_VALUE;
@@ -5761,7 +5760,7 @@ pi_result cuda_piTearDown(void *) {
 pi_result cuda_piGetDeviceAndHostTimer(pi_device Device, uint64_t *DeviceTime,
                                        uint64_t *HostTime) {
   _pi_event::native_type event;
-  ScopedContext active(Device->get_context());
+  ScopedContext active(Device);
 
   if (DeviceTime) {
     PI_CHECK_ERROR(cuEventCreate(&event, CU_EVENT_DEFAULT));
