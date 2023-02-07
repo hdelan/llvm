@@ -262,6 +262,11 @@ private:
   std::map<std::pair<RT::PiProgram, RT::PiDevice>, DeviceGlobalInitializer>
       MDeviceGlobalInitializers;
   std::mutex MDeviceGlobalInitializersMutex;
+  friend pi_memory_connection
+  getMemoryConnection(const std::shared_ptr<device_impl> &Dev1,
+                      const std::shared_ptr<context_impl> &Ctx1,
+                      const std::shared_ptr<device_impl> &Dev2,
+                      const std::shared_ptr<context_impl> &Ctx2);
 };
 
 } // namespace detail
