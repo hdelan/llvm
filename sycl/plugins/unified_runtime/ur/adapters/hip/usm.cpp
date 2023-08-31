@@ -25,7 +25,6 @@ UR_APIEXPORT ur_result_t UR_APICALL urUSMHostAlloc(
 
   ur_result_t Result = UR_RESULT_SUCCESS;
   try {
-    ScopedDevice Active(hContext->getDevice());
     Result = UR_CHECK_ERROR(hipHostMalloc(ppMem, size));
   } catch (ur_result_t Error) {
     return Error;
@@ -41,7 +40,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urUSMHostAlloc(
 
 /// USM: Implements USM device allocations using a normal HIP device pointer
 UR_APIEXPORT ur_result_t UR_APICALL urUSMDeviceAlloc(
-    ur_context_handle_t hContext, ur_device_handle_t,
+    ur_context_handle_t hContext, ur_device_handle_t hDevice,
     const ur_usm_desc_t *pUSMDesc, [[maybe_unused]] ur_usm_pool_handle_t pool,
     size_t size, void **ppMem) {
   UR_ASSERT(!pUSMDesc || (pUSMDesc->align == 0 ||
@@ -50,7 +49,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urUSMDeviceAlloc(
 
   ur_result_t Result = UR_RESULT_SUCCESS;
   try {
-    ScopedDevice Active(hContext->getDevice());
+    ScopedDevice Active(hDevice);
     Result = UR_CHECK_ERROR(hipMalloc(ppMem, size));
   } catch (ur_result_t Error) {
     return Error;
@@ -66,7 +65,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urUSMDeviceAlloc(
 
 /// USM: Implements USM Shared allocations using HIP Managed Memory
 UR_APIEXPORT ur_result_t UR_APICALL urUSMSharedAlloc(
-    ur_context_handle_t hContext, ur_device_handle_t,
+    ur_context_handle_t hContext, ur_device_handle_t hDevice,
     const ur_usm_desc_t *pUSMDesc, [[maybe_unused]] ur_usm_pool_handle_t pool,
     size_t size, void **ppMem) {
   UR_ASSERT(!pUSMDesc || (pUSMDesc->align == 0 ||
@@ -75,7 +74,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urUSMSharedAlloc(
 
   ur_result_t Result = UR_RESULT_SUCCESS;
   try {
-    ScopedDevice Active(hContext->getDevice());
+    ScopedDevice Active(hDevice);
     Result = UR_CHECK_ERROR(hipMallocManaged(ppMem, size, hipMemAttachGlobal));
   } catch (ur_result_t Error) {
     Result = Error;
@@ -94,7 +93,6 @@ UR_APIEXPORT ur_result_t UR_APICALL urUSMFree(ur_context_handle_t hContext,
                                               void *pMem) {
   ur_result_t Result = UR_RESULT_SUCCESS;
   try {
-    ScopedDevice Active(hContext->getDevice());
     unsigned int Type;
     hipPointerAttribute_t hipPointerAttributeType;
     Result =
@@ -125,7 +123,6 @@ urUSMGetMemAllocInfo(ur_context_handle_t hContext, const void *pMem,
   UrReturnHelper ReturnValue(propValueSize, pPropValue, pPropValueSizeRet);
 
   try {
-    ScopedDevice Active(hContext->getDevice());
     switch (propName) {
     case UR_USM_ALLOC_INFO_TYPE: {
       unsigned int Value;
