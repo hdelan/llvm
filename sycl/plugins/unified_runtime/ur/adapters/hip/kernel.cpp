@@ -17,7 +17,7 @@ urKernelCreate(ur_program_handle_t hProgram, const char *pKernelName,
   std::unique_ptr<ur_kernel_handle_t_> RetKernel{nullptr};
 
   try {
-    ScopedDevice Active(hProgram->getContext()->getDevice());
+    ScopedDevice Active(hProgram->getDevice());
 
     hipFunction_t HIPFunc;
     Result = UR_CHECK_ERROR(
@@ -281,13 +281,16 @@ UR_APIEXPORT ur_result_t UR_APICALL urKernelSetArgMemObj(
     return UR_RESULT_SUCCESS;
   }
 
+  auto Device = hKernel->getProgram()->getDevice();
+
   ur_result_t Result = UR_RESULT_SUCCESS;
   try {
-    if (hArgValue->MemType == ur_mem_handle_t_::Type::Surface) {
-      auto array = hArgValue->Mem.SurfaceMem.getArray();
+    if (hArgValue->isImage()) {
+      ur_image_ *ImageArg = ur_cast<ur_image_ *>(hArgValue);
+      hipArray *Array = ImageArg->getArray(Device);
       hipArray_Format Format;
       size_t NumChannels;
-      getArrayDesc(array, Format, NumChannels);
+      getArrayDesc(Array, Format, NumChannels);
       if (Format != HIP_AD_FORMAT_UNSIGNED_INT32 &&
           Format != HIP_AD_FORMAT_SIGNED_INT32 &&
           Format != HIP_AD_FORMAT_HALF && Format != HIP_AD_FORMAT_FLOAT) {
@@ -295,12 +298,10 @@ UR_APIEXPORT ur_result_t UR_APICALL urKernelSetArgMemObj(
             "UR HIP kernels only support images with channel types int32, "
             "uint32, float, and half.");
       }
-      hipSurfaceObject_t hipSurf = hArgValue->Mem.SurfaceMem.getSurface();
+      hipSurfaceObject_t hipSurf = ImageArg->getSurface(Device);
       hKernel->setKernelArg(argIndex, sizeof(hipSurf), (void *)&hipSurf);
-    } else
-
-    {
-      void *HIPPtr = hArgValue->Mem.BufferMem.getVoid();
+    } else {
+      void *HIPPtr = ur_cast<ur_buffer_ *>(hArgValue)->getPtr(Device);
       hKernel->setKernelArg(argIndex, sizeof(void *), (void *)&HIPPtr);
     }
   } catch (ur_result_t Err) {
