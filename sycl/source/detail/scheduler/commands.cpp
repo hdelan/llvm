@@ -3126,8 +3126,11 @@ pi_int32 ExecCGCommand::enqueueImpQueue() {
     // submitted to report exception origin properly.
     copySubmissionCodeLocation();
 
-    MQueue->getThreadPool().submit<DispatchHostTask>(
-        DispatchHostTask(this, std::move(ReqToMem), MEvent));
+    if (HostTask->MHostTask->isManualInteropSync()) {
+      DispatchHostTask(this, std::move(ReqToMem), MEvent)();
+    } else
+      MQueue->getThreadPool().submit<DispatchHostTask>(
+          DispatchHostTask(this, std::move(ReqToMem), MEvent));
 
     MShouldCompleteEventIfPossible = false;
 
