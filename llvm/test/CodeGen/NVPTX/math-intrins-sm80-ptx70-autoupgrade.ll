@@ -36,15 +36,6 @@ declare i16 @llvm.nvvm.fmax.nan.bf16(i16, i16)
 declare i32 @llvm.nvvm.fmax.bf16x2(i32, i32)
 declare i32 @llvm.nvvm.fmax.nan.bf16x2(i32, i32)
 
-declare half @llvm.nvvm.fma.rn.relu.f16(half, half, half)
-declare half @llvm.nvvm.fma.rn.ftz.relu.f16(half, half, half)
-declare <2 x half> @llvm.nvvm.fma.rn.relu.f16x2(<2 x half>, <2 x half>, <2 x half>)
-declare <2 x half> @llvm.nvvm.fma.rn.ftz.relu.f16x2(<2 x half>, <2 x half>, <2 x half>)
-declare i16 @llvm.nvvm.fma.rn.bf16(i16, i16, i16)
-declare i16 @llvm.nvvm.fma.rn.relu.bf16(i16, i16, i16)
-declare i32 @llvm.nvvm.fma.rn.bf16x2(i32, i32, i32)
-declare i32 @llvm.nvvm.fma.rn.relu.bf16x2(i32, i32, i32)
-
 ; CHECK-LABEL: abs_bf16
 define i16 @abs_bf16(i16 %0) {
   ; CHECK-NOT: call

@@ -36,15 +36,6 @@ declare bfloat @llvm.nvvm.fmax.nan.bf16(bfloat, bfloat)
 declare <2 x bfloat> @llvm.nvvm.fmax.bf16x2(<2 x bfloat>, <2 x bfloat>)
 declare <2 x bfloat> @llvm.nvvm.fmax.nan.bf16x2(<2 x bfloat>, <2 x bfloat>)
 
-declare half @llvm.nvvm.fma.rn.relu.f16(half, half, half)
-declare half @llvm.nvvm.fma.rn.ftz.relu.f16(half, half, half)
-declare <2 x half> @llvm.nvvm.fma.rn.relu.f16x2(<2 x half>, <2 x half>, <2 x half>)
-declare <2 x half> @llvm.nvvm.fma.rn.ftz.relu.f16x2(<2 x half>, <2 x half>, <2 x half>)
-declare bfloat @llvm.nvvm.fma.rn.bf16(bfloat, bfloat, bfloat)
-declare bfloat @llvm.nvvm.fma.rn.relu.bf16(bfloat, bfloat, bfloat)
-declare <2 x bfloat> @llvm.nvvm.fma.rn.bf16x2(<2 x bfloat>, <2 x bfloat>, <2 x bfloat>)
-declare <2 x bfloat> @llvm.nvvm.fma.rn.relu.bf16x2(<2 x bfloat>, <2 x bfloat>, <2 x bfloat>)
-
 ; CHECK-LABEL: abs_bf16
 define bfloat @abs_bf16(bfloat %0) {
   ; CHECK-NOT: call
